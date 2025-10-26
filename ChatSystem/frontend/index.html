@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatSystem - Network Programming</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 ChatSystem</h1>
+            <p>Network Programming - Real-Time Chat Application</p>
+        </header>
+        
+        <!-- Connection Panel -->
+        <div id="connectionPanel" class="panel">
+            <h2>Connect to Chat Server</h2>
+            <form id="connectForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="serverHost">Server:</label>
+                    <input type="text" id="serverHost" value="localhost" placeholder="Server address">
+                </div>
+                <div class="form-group">
+                    <label for="serverPort">Port:</label>
+                    <input type="number" id="serverPort" value="8888" placeholder="8888">
+                </div>
+                <button type="submit" class="btn-primary">Connect</button>
+            </form>
+        </div>
+        
+        <!-- Chat Panel -->
+        <div id="chatPanel" class="panel" style="display: none;">
+            <div class="chat-header">
+                <div>
+                    <h2>Chat Room</h2>
+                    <p id="connectionStatus">Connected as <span id="currentUsername"></span></p>
+                </div>
+                <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+            </div>
+            
+            <div class="chat-main">
+                <div class="sidebar">
+                    <h3>Online Users</h3>
+                    <ul id="userList"></ul>
+                    
+                    <h3>API Commands</h3>
+                    <div class="api-commands">
+                        <button class="btn-api" data-cmd="/help">Help</button>
+                        <button class="btn-api" data-cmd="/joke">Random Joke</button>
+                        <button class="btn-api" data-cmd="/quote">Quote</button>
+                        <button class="btn-api" data-cmd="/weather London">Weather</button>
+                    </div>
+                </div>
+                
+                <div class="chat-area">
+                    <div id="messageArea" class="message-area"></div>
+                    
+                    <form id="messageForm" class="message-input">
+                        <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+                        <button type="submit" class="btn-send">Send</button>
+                    </form>
+                    
+                    <div class="help-text">
+                        <small>
+                            💡 Tip: Use @username to send private message | API commands: /weather, /joke, /quote
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Feature Showcase -->
+        <div class="features">
+            <h2>Network Programming Concepts Demonstrated</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🔌 Member 1</h3>
+                    <p><strong>TCP Connection Listener</strong></p>
+                    <p>ServerSocket with blocking I/O for reliable client connections</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Member 2</h3>
+                    <p><strong>Concurrent Client Handler</strong></p>
+                    <p>ExecutorService & ThreadPool for scalable multi-client support</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🚀 Member 3</h3>
+                    <p><strong>NIO Message Broadcaster</strong></p>
+                    <p>Channels, Buffers & Selectors for high-performance I/O</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔒 Member 4</h3>
+                    <p><strong>Thread-Safe Management</strong></p>
+                    <p>Synchronization & concurrent collections for data safety</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌍 Member 5</h3>
+                    <p><strong>External API Integration</strong></p>
+                    <p>URL/URLConnection for HTTP requests to external services</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
