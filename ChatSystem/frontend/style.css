@@ -244,6 +244,12 @@ button {
     margin-bottom: 5px;
 }
 
+.message-time {
+    font-weight: normal;
+    color: #999;
+    font-size: 0.8em;
+}
+
 .message-content {
     color: #333;
 }

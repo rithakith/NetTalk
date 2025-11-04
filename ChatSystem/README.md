@@ -255,10 +255,28 @@ Hello everyone!
 /quit
 ```
 
-### Frontend (Optional)
-Open `frontend/index.html` in a web browser for a demonstration UI. 
+### Frontend (Web Interface)
 
-**Note:** The HTML frontend is for demonstration only. To actually connect to the Java server, use the console-based `ChatClient.java` or implement a WebSocket bridge.
+The project includes a fully functional web frontend that connects to the Java server through a WebSocket bridge.
+
+#### Running the Web Interface
+
+1. **Start the WebSocket Bridge Server:**
+   ```bash
+   # Requires Java-WebSocket library
+   java -cp ".:path/to/Java-WebSocket.jar:path/to/gson.jar" com.chatapp.server.WebSocketServer
+   ```
+   
+   The WebSocket bridge runs on port 8889 and connects to the main chat server on port 8888.
+
+2. **Open the Web Interface:**
+   Open `frontend/index.html` in a web browser. The interface will:
+   - Connect to the WebSocket bridge on port 8889
+   - Support all chat features (public messages, private messages, API commands)
+   - Display real-time updates from all connected users
+   - Show timestamps and user lists
+
+**Note:** Make sure both the ChatServer (port 8888) and WebSocketServer (port 8889) are running before connecting from the web interface.
 
 ---
 

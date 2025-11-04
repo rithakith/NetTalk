@@ -60,79 +60,77 @@ apiButtons.forEach(btn => {
 });
 
 /**
- * Connect to chat server
- * NOTE: This is a simulation. For real implementation, use WebSocket or implement a bridge
+ * Connect to chat server via WebSocket bridge
  */
 function connectToServer(user, host, port) {
-    console.log(`Connecting to ${host}:${port} as ${user}...`);
+    console.log(`Connecting to WebSocket bridge at ${host}:8889 as ${user}...`);
     
-    // Simulate successful connection
-    setTimeout(() => {
-        connected = true;
-        username = user;
+    try {
+        // Connect to WebSocket bridge server (running on port 8889)
+        ws = new WebSocket(`ws://${host}:8889`);
         
-        // Update UI
-        connectionPanel.style.display = 'none';
-        chatPanel.style.display = 'block';
-        currentUsernameSpan.textContent = username;
+        ws.onopen = () => {
+            console.log('Connected to WebSocket bridge');
+            connected = true;
+            username = user;
+            
+            // Send CONNECT message
+            ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
+            
+            // Update UI
+            connectionPanel.style.display = 'none';
+            chatPanel.style.display = 'block';
+            currentUsernameSpan.textContent = username;
+            
+            // Add system message
+            addMessage('SYSTEM', 'Server', `Connecting as ${username}...`);
+        };
         
-        // Add system message
-        addMessage('SYSTEM', 'Server', `Welcome to the chat, ${username}!`);
-        addMessage('SYSTEM', 'Server', 'Connected successfully. This is a demo interface.');
-        addMessage('SYSTEM', 'Info', 'To actually connect to the Java server, run the ChatClient.java console application or implement a WebSocket bridge.');
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            } catch (error) {
+                console.error('Error parsing message:', error);
+            }
+        };
         
-        // Simulate some users
-        updateUserList(['Alice', 'Bob', username]);
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            addMessage('SYSTEM', 'Error', 'Failed to connect to WebSocket bridge server on port 8889');
+            addMessage('SYSTEM', 'Info', 'Please ensure: 1) ChatServer is running on port 8888, 2) WebSocketServer is running on port 8889');
+            addMessage('SYSTEM', 'Info', 'Run: java -cp ".:lib/*" com.chatapp.server.WebSocketServer');
+            alert('Connection error!\n\nMake sure:\n1. ChatServer is running (port 8888)\n2. WebSocketServer is running (port 8889)\n3. Required libraries (Java-WebSocket and Gson) are in lib/ folder');
+            disconnect();
+        };
         
-        // Demo messages
-        setTimeout(() => {
-            addMessage('CHAT', 'Alice', 'Hello everyone!');
-        }, 1000);
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            connected = false;
+            disconnect();
+        };
         
-        setTimeout(() => {
-            addMessage('CHAT', 'Bob', 'Welcome to the chat!');
-        }, 2000);
-        
-    }, 500);
-    
-    /* 
-     * REAL IMPLEMENTATION EXAMPLE (if you implement WebSocket bridge):
-     * 
-     * ws = new WebSocket(`ws://${host}:${port}/chat`);
-     * 
-     * ws.onopen = () => {
-     *     console.log('Connected to server');
-     *     ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
-     *     // Update UI...
-     * };
-     * 
-     * ws.onmessage = (event) => {
-     *     const message = JSON.parse(event.data);
-     *     handleMessage(message);
-     * };
-     * 
-     * ws.onerror = (error) => {
-     *     console.error('WebSocket error:', error);
-     *     alert('Connection error!');
-     * };
-     * 
-     * ws.onclose = () => {
-     *     connected = false;
-     *     // Update UI...
-     * };
-     */
+    } catch (error) {
+        console.error('Failed to create WebSocket connection:', error);
+        alert('Failed to connect to WebSocket bridge server!');
+    }
 }
 
 /**
  * Send message to server
  */
 function sendMessage(message) {
-    if (!connected) {
+    if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
         alert('Not connected to server!');
         return;
     }
     
     console.log('Sending message:', message);
+    
+    let messageObj = {
+        sender: username,
+        content: message
+    };
     
     // Handle different message types
     if (message.startsWith('@')) {
@@ -141,40 +139,101 @@ function sendMessage(message) {
         if (spaceIndex > 0) {
             const receiver = message.substring(1, spaceIndex);
             const content = message.substring(spaceIndex + 1);
-            addMessage('CHAT', username, `@${receiver}: ${content}`);
-            addMessage('SYSTEM', 'Server', `Private message sent to ${receiver}`);
+            messageObj = {
+                type: 'PRIVATE_MSG',
+                sender: username,
+                receiver: receiver,
+                content: content
+            };
+        } else {
+            alert('Invalid private message format. Use: @username message');
+            return;
         }
     } else if (message.startsWith('/')) {
         // API command
-        addMessage('CHAT', username, message);
-        
-        // Simulate API response
-        setTimeout(() => {
-            simulateApiResponse(message);
-        }, 500);
+        messageObj.type = 'API_REQUEST';
     } else {
         // Regular chat message
-        addMessage('CHAT', username, message);
+        messageObj.type = 'CHAT';
     }
     
-    /* 
-     * REAL IMPLEMENTATION:
-     * ws.send(JSON.stringify({
-     *     type: message.startsWith('/') ? 'API_REQUEST' : 'CHAT',
-     *     sender: username,
-     *     content: message
-     * }));
-     */
+    // Send message through WebSocket
+    try {
+        ws.send(JSON.stringify(messageObj));
+    } catch (error) {
+        console.error('Failed to send message:', error);
+        alert('Failed to send message!');
+    }
+}
+
+/**
+ * Handle incoming messages from server
+ */
+function handleMessage(message) {
+    console.log('Received message:', message);
+    
+    switch (message.type) {
+        case 'CONNECT':
+            addMessage('SYSTEM', 'Server', `${message.sender} joined the chat`);
+            break;
+            
+        case 'DISCONNECT':
+            addMessage('SYSTEM', 'Server', `${message.sender} left the chat`);
+            break;
+            
+        case 'CHAT':
+            addMessage('CHAT', message.sender, message.content);
+            break;
+            
+        case 'PRIVATE_MSG':
+            if (message.receiver === username || message.sender === username) {
+                addMessage('PRIVATE', message.sender, 
+                    `@${message.receiver}: ${message.content}`);
+            }
+            break;
+            
+        case 'API_RESPONSE':
+            addMessage('API', 'API Bot', message.content);
+            break;
+            
+        case 'SYSTEM':
+            addMessage('SYSTEM', 'Server', message.content);
+            break;
+            
+        case 'USER_LIST':
+            if (message.content) {
+                try {
+                    const users = JSON.parse(message.content);
+                    updateUserList(users);
+                } catch (e) {
+                    console.error('Failed to parse user list:', e);
+                }
+            }
+            break;
+            
+        default:
+            console.warn('Unknown message type:', message.type);
+    }
 }
 
 /**
  * Disconnect from server
  */
 function disconnect() {
-    if (ws) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        // Send disconnect message before closing
+        try {
+            ws.send(JSON.stringify({
+                type: 'DISCONNECT',
+                sender: username
+            }));
+        } catch (e) {
+            console.error('Failed to send disconnect message:', e);
+        }
         ws.close();
     }
     
+    ws = null;
     connected = false;
     chatPanel.style.display = 'none';
     connectionPanel.style.display = 'block';
@@ -198,7 +257,14 @@ function addMessage(type, sender, content) {
     contentDiv.className = 'message-content';
     contentDiv.textContent = content;
     
+    // Add timestamp
+    const timestamp = new Date().toLocaleTimeString();
+    const timeDiv = document.createElement('span');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = ` (${timestamp})`;
+    
     if (type !== 'SYSTEM') {
+        senderDiv.appendChild(timeDiv);
         messageDiv.appendChild(senderDiv);
     }
     messageDiv.appendChild(contentDiv);
@@ -223,31 +289,6 @@ function updateUserList(users) {
     });
 }
 
-/**
- * Simulate API response (for demo purposes)
- */
-function simulateApiResponse(command) {
-    let response = '';
-    
-    if (command.startsWith('/weather')) {
-        response = `🌤️ Weather for London:\nLondon: ⛅️  +15°C`;
-    } else if (command === '/joke') {
-        response = `😄 Random Joke:\nWhy do programmers prefer dark mode?\nBecause light attracts bugs!`;
-    } else if (command === '/quote') {
-        response = `💭 Quote of the moment:\n"The only way to do great work is to love what you do."\n- Steve Jobs`;
-    } else if (command === '/help') {
-        response = `🤖 Available API Commands:
-/weather <city> - Get current weather for a city
-/joke - Get a random joke
-/quote - Get an inspirational quote
-/help - Show this help message`;
-    } else {
-        response = 'Unknown command. Type /help for available commands.';
-    }
-    
-    addMessage('API', 'API Bot', response);
-}
-
 // Initialize
 console.log('Chat application loaded');
-console.log('To actually connect to the Java server, use the ChatClient.java console application');
+console.log('Make sure the WebSocket bridge server is running on port 8889');
