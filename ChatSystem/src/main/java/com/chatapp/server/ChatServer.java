@@ -48,7 +48,9 @@ public class ChatServer {
         System.out.println("Demonstrating 5 Network Programming Concepts");
         System.out.println("=".repeat(60));
     }
-    
+    public UserManager getUserManager() {
+        return userManager;
+    }
     /**
      * Start the chat server
      */

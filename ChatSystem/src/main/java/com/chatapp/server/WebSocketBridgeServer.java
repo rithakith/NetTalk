@@ -137,6 +137,17 @@ public class WebSocketBridgeServer extends org.java_websocket.server.WebSocketSe
                     msg = new Message(Message.MessageType.DISCONNECT,
                         jsonMsg.get("sender").getAsString(), "");
                     break;
+                case "REGISTER":
+                    msg = new Message(Message.MessageType.REGISTER,
+                            jsonMsg.get("sender").getAsString(),
+                            jsonMsg.get("content").getAsString());
+                    break;
+
+                case "LOGIN":
+                    msg = new Message(Message.MessageType.LOGIN,
+                            jsonMsg.get("sender").getAsString(),
+                            jsonMsg.get("content").getAsString());
+                    break;
             }
             
             if (msg != null && clientConn.tcpOut != null) {
