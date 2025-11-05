@@ -7,77 +7,100 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🌐 ChatSystem</h1>
-            <p>Network Programming - Real-Time Chat Application</p>
-        </header>
-        
-        <!-- Connection Panel -->
-        <div id="connectionPanel" class="panel">
-            <h2>Connect to Chat Server</h2>
-            <form id="connectForm">
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" required placeholder="Enter your username">
-                </div>
-                <div class="form-group">
-                    <label for="serverHost">Server:</label>
-                    <input type="text" id="serverHost" value="localhost" placeholder="Server address">
-                </div>
-                <div class="form-group">
-                    <label for="serverPort">Port:</label>
-                    <input type="number" id="serverPort" value="8888" placeholder="8888">
-                </div>
-                <button type="submit" class="btn-primary">Connect</button>
-            </form>
+<div class="container">
+    <header>
+        <h1>🌐 ChatSystem</h1>
+        <p>Network Programming - Real-Time Chat Application</p>
+    </header>
+
+    <!-- AUTH PANEL (NEW) -->
+    <div id="authPanel" class="panel">
+        <h2>User Authentication</h2>
+        <div class="form-group">
+            <label for="authUsername">Username:</label>
+            <input type="text" id="authUsername" placeholder="Enter your username" required>
         </div>
-        
+        <div class="form-group">
+            <label for="authPassword">Password:</label>
+            <input type="password" id="authPassword" placeholder="Enter password" required>
+        </div>
+        <div class="auth-buttons">
+            <button id="loginBtn" class="btn-primary">Login</button>
+            <button id="registerBtn" class="btn-secondary">Register</button>
+        </div>
+    </div>
+
+    <!-- Connection Panel (unchanged) -->
+    <div id="connectionPanel" class="panel" style="display: none;">
+        <h2>Connect to Chat Server</h2>
+        <form id="connectForm">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" required placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="serverHost">Server:</label>
+                <input type="text" id="serverHost" value="localhost" placeholder="Server address">
+            </div>
+            <div class="form-group">
+                <label for="serverPort">Port:</label>
+                <input type="number" id="serverPort" value="8888" placeholder="8888">
+            </div>
+            <button type="submit" class="btn-primary">Connect</button>
+        </form>
+    </div>
+
         <!-- Chat Panel -->
-        <div id="chatPanel" class="panel" style="display: none;">
-            <div class="chat-header">
-                <div>
-                    <h2>Chat Room</h2>
-                    <p id="connectionStatus">Connected as <span id="currentUsername"></span></p>
-                </div>
-                <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+    <div id="chatPanel" class="panel" style="display: none;">
+        <div class="chat-header">
+            <div>
+                <h2>Chat Room</h2>
+                <p id="connectionStatus">Connected as <span id="currentUsername"></span></p>
             </div>
-            
-            <div class="chat-main">
-                <div class="sidebar">
-                    <h3>Online Users</h3>
-                    <ul id="userList"></ul>
-                    
-                    <h3>API Commands</h3>
-                    <div class="api-commands">
-                        <button class="btn-api" data-cmd="/help">Help</button>
-                        <button class="btn-api" data-cmd="/joke">Random Joke</button>
-                        <button class="btn-api" data-cmd="/quote">Quote</button>
-                        <button class="btn-api" data-cmd="/weather London">Weather</button>
-                    </div>
+            <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+        </div>
+
+        <div class="chat-main">
+            <div class="sidebar">
+                <h3>Online Users</h3>
+                <ul id="userList"></ul>
+
+                <h3>API Commands</h3>
+                <div class="api-commands">
+                    <button class="btn-api" data-cmd="/help">Help</button>
+                    <button class="btn-api" data-cmd="/joke">Random Joke</button>
+                    <button class="btn-api" data-cmd="/quote">Quote</button>
+                    <button class="btn-api" data-cmd="/weather London">Weather</button>
                 </div>
-                
-                <div class="chat-area">
-                    <div id="messageArea" class="message-area"></div>
-                    
-                    <form id="messageForm" class="message-input">
-                        <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
-                        <button type="submit" class="btn-send">Send</button>
-                    </form>
-                    
-                    <div class="help-text">
-                        <small>
-                            💡 Tip: Use @username to send private message | API commands: /weather, /joke, /quote
-                        </small>
-                    </div>
+            </div>
+
+            <div class="chat-area">
+                <div id="messageArea" class="message-area"></div>
+
+                <form id="messageForm" class="message-input">
+                    <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+                    <button type="submit" class="btn-send">Send</button>
+                </form>
+
+                <!-- File upload (NEW) -->
+                <div class="file-upload">
+                    <input type="file" id="fileInput" hidden>
+                    <button id="fileBtn" class="btn-primary">📁 Send File</button>
+                </div>
+
+                <div class="help-text">
+                    <small>
+                        💡 Tip: Use @username to send private message | /file to send file | /weather, /joke, /quote
+                    </small>
                 </div>
             </div>
         </div>
-        
+    </div>
+
         <!-- Feature Showcase -->
-        <div class="features">
-            <h2>Network Programming Concepts Demonstrated</h2>
-            <div class="feature-grid">
+    <div class="features">
+        <h2>Network Programming Concepts Demonstrated</h2>
+        <div class="feature-grid">
                 <div class="feature-card">
                     <h3>🔌 Member 1</h3>
                     <p><strong>TCP Connection Listener</strong></p>
@@ -103,10 +126,10 @@
                     <p><strong>External API Integration</strong></p>
                     <p>URL/URLConnection for HTTP requests to external services</p>
                 </div>
-            </div>
         </div>
     </div>
-    
-    <script src="app.js"></script>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>

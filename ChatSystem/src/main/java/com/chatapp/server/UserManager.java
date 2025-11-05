@@ -62,7 +62,7 @@ public class UserManager {
     }
 
     /**
-     * Register username => hashedPassword. Returns false if user exists.
+     * Register credentials (compatible with ClientHandler calls)
      */
     public boolean registerCredentials(String username, String plaintextPassword) {
         return registerCredentials(username, plaintextPassword, "user");
@@ -82,7 +82,7 @@ public class UserManager {
     }
 
     /**
-     * Validate username & password
+     * Validate credentials (compatible with ClientHandler calls)
      */
     public boolean validateCredentials(String username, String plaintextPassword) {
         String storedHash = credentials.get(username);
@@ -203,7 +203,7 @@ public class UserManager {
     }
 
     /**
-     * Check if user exists - thread-safe
+     * Check if user exists in credentials
      */
     public boolean userExists(String username) {
         return credentials.containsKey(username);

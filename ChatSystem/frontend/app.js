@@ -1,294 +1,370 @@
-// Chat Client Frontend Application
-// Note: This is a demonstration frontend. For actual connection to the Java server,
-// you would need a WebSocket bridge or REST API layer.
-
+let ws;
 let connected = false;
 let username = '';
-let ws = null; // WebSocket connection (if implemented)
+let currentAuthWs = null;
 
 // DOM Elements
+const authPanel = document.getElementById('authPanel');
 const connectionPanel = document.getElementById('connectionPanel');
 const chatPanel = document.getElementById('chatPanel');
-const connectForm = document.getElementById('connectForm');
-const messageForm = document.getElementById('messageForm');
+const currentUsernameSpan = document.getElementById('currentUsername');
 const messageInput = document.getElementById('messageInput');
 const messageArea = document.getElementById('messageArea');
-const currentUsernameSpan = document.getElementById('currentUsername');
-const disconnectBtn = document.getElementById('disconnectBtn');
 const userList = document.getElementById('userList');
-const apiButtons = document.querySelectorAll('.btn-api');
 
-// Connect Form Handler
-connectForm.addEventListener('submit', (e) => {
+// Auth buttons
+document.getElementById('loginBtn').addEventListener('click', () => handleAuth('LOGIN'));
+document.getElementById('registerBtn').addEventListener('click', () => handleAuth('REGISTER'));
+
+// File handling
+document.getElementById('fileBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', handleFile);
+
+// Connect form
+document.getElementById('connectForm').addEventListener('submit', e => {
     e.preventDefault();
-    
-    username = document.getElementById('username').value.trim();
-    const serverHost = document.getElementById('serverHost').value;
-    const serverPort = document.getElementById('serverPort').value;
-    
-    if (!username) {
-        alert('Please enter a username');
-        return;
-    }
-    
-    // Simulate connection (in real implementation, establish WebSocket connection)
-    connectToServer(username, serverHost, serverPort);
+    connectToServer();
 });
 
-// Message Form Handler
-messageForm.addEventListener('submit', (e) => {
+// Disconnect
+document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+
+// Message send
+document.getElementById('messageForm').addEventListener('submit', e => {
     e.preventDefault();
-    
-    const message = messageInput.value.trim();
-    if (!message) return;
-    
-    sendMessage(message);
+    sendMessage(messageInput.value.trim());
     messageInput.value = '';
 });
 
-// Disconnect Button Handler
-disconnectBtn.addEventListener('click', () => {
-    disconnect();
+// API commands
+document.querySelectorAll('.btn-api').forEach(btn => {
+    btn.addEventListener('click', () => sendMessage(btn.getAttribute('data-cmd')));
 });
 
-// API Command Buttons
-apiButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const command = btn.getAttribute('data-cmd');
-        sendMessage(command);
-    });
-});
+/* 🔐 Secure Authentication */
+function handleAuth(authType) {
+    const user = document.getElementById('authUsername').value.trim();
+    const pass = document.getElementById('authPassword').value.trim();
 
-/**
- * Connect to chat server via WebSocket bridge
- */
-function connectToServer(user, host, port) {
-    console.log(`Connecting to WebSocket bridge at ${host}:8889 as ${user}...`);
-    
+    if (!user || !pass) {
+        alert('Please enter username and password');
+        return;
+    }
+
+    // Close any existing auth connection
+    if (currentAuthWs) {
+        currentAuthWs.close();
+    }
+
+    // Create WebSocket connection for authentication
+    currentAuthWs = new WebSocket('ws://localhost:8889');
+
+    currentAuthWs.onopen = () => {
+        console.log(`[Auth] Sending ${authType} for user: ${user}`);
+        currentAuthWs.send(JSON.stringify({
+            type: authType,
+            sender: user,
+            content: pass
+        }));
+    };
+
+    currentAuthWs.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            console.log('[Auth] Received:', msg);
+
+            if (msg.type === 'AUTH_RESPONSE') {
+                if (msg.content.includes('SUCCESS')) {
+                    // Authentication successful
+                    username = user;
+                    authPanel.style.display = 'none';
+                    connectionPanel.style.display = 'block';
+                    document.getElementById('username').value = user;
+                    alert(`✅ ${authType} successful! ${msg.content}`);
+                    currentAuthWs.close();
+                    currentAuthWs = null;
+                } else {
+                    // Authentication failed
+                    alert(`❌ ${authType} failed: ${msg.content}`);
+                    currentAuthWs.close();
+                    currentAuthWs = null;
+                }
+            }
+        } catch (error) {
+            console.error('[Auth] Error parsing message:', error);
+        }
+    };
+
+    currentAuthWs.onerror = (error) => {
+        console.error('[Auth] WebSocket error:', error);
+        alert('Connection error during authentication');
+        currentAuthWs = null;
+    };
+
+    currentAuthWs.onclose = () => {
+        console.log('[Auth] Authentication connection closed');
+        currentAuthWs = null;
+    };
+
+    // Set timeout to prevent hanging
+    setTimeout(() => {
+        if (currentAuthWs && currentAuthWs.readyState === WebSocket.OPEN) {
+            currentAuthWs.close();
+            currentAuthWs = null;
+            alert('Authentication timeout. Please try again.');
+        }
+    }, 10000);
+}
+
+/* 🌐 Connection logic */
+function connectToServer() {
+    const serverHost = document.getElementById('serverHost').value || 'localhost';
+    const serverPort = document.getElementById('serverPort').value || '8888';
+    const connectUsername = document.getElementById('username').value.trim();
+
+    if (!connectUsername) {
+        alert('Please enter a username');
+        return;
+    }
+
+    // Use the authenticated username or the one from connect form
+    const finalUsername = username || connectUsername;
+
     try {
-        // Connect to WebSocket bridge server (running on port 8889)
-        ws = new WebSocket(`ws://${host}:8889`);
-        
+        ws = new WebSocket(`ws://${serverHost}:8889`);
+
         ws.onopen = () => {
-            console.log('Connected to WebSocket bridge');
+            console.log('[Connect] WebSocket connected, sending CONNECT for:', finalUsername);
+            // Send connect message to join chat
+            ws.send(JSON.stringify({
+                type: 'CONNECT',
+                sender: finalUsername
+            }));
             connected = true;
-            username = user;
-            
-            // Send CONNECT message
-            ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
-            
-            // Update UI
+            username = finalUsername;
             connectionPanel.style.display = 'none';
             chatPanel.style.display = 'block';
-            currentUsernameSpan.textContent = username;
-            
-            // Add system message
-            addMessage('SYSTEM', 'Server', `Connecting as ${username}...`);
+            currentUsernameSpan.textContent = `${username}`;
+            addMessage('SYSTEM', 'System', 'Connected to chat server');
         };
-        
+
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
                 handleMessage(message);
             } catch (error) {
-                console.error('Error parsing message:', error);
+                console.error('[Connect] Error parsing message:', error);
             }
         };
-        
+
+        ws.onclose = (event) => {
+            console.log('[Connect] WebSocket closed:', event.code, event.reason);
+            if (connected) {
+                addMessage('SYSTEM', 'System', 'Disconnected from server');
+                disconnect();
+            }
+        };
+
         ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            addMessage('SYSTEM', 'Error', 'Failed to connect to WebSocket bridge server on port 8889');
-            addMessage('SYSTEM', 'Info', 'Please ensure: 1) ChatServer is running on port 8888, 2) WebSocketServer is running on port 8889');
-            addMessage('SYSTEM', 'Info', 'Run: java -cp ".:lib/*" com.chatapp.server.WebSocketServer');
-            alert('Connection error!\n\nMake sure:\n1. ChatServer is running (port 8888)\n2. WebSocketServer is running (port 8889)\n3. Required libraries (Java-WebSocket and Gson) are in lib/ folder');
-            disconnect();
+            console.error('[Connect] WebSocket error:', error);
+            alert('Failed to connect to server');
         };
-        
-        ws.onclose = () => {
-            console.log('WebSocket connection closed');
-            connected = false;
-            disconnect();
-        };
-        
+
     } catch (error) {
-        console.error('Failed to create WebSocket connection:', error);
-        alert('Failed to connect to WebSocket bridge server!');
+        console.error('[Connect] Connection error:', error);
+        alert('Connection failed: ' + error.message);
     }
 }
 
-/**
- * Send message to server
- */
-function sendMessage(message) {
-    if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
-        alert('Not connected to server!');
+/* 💬 Send message */
+function sendMessage(text) {
+    if (!connected || !text || !ws) {
+        console.warn('[Send] Not connected or empty message');
         return;
     }
-    
-    console.log('Sending message:', message);
-    
-    let messageObj = {
+
+    let message = {
         sender: username,
-        content: message
+        content: text
     };
-    
-    // Handle different message types
-    if (message.startsWith('@')) {
-        // Private message
-        const spaceIndex = message.indexOf(' ');
+
+    // Determine message type
+    if (text.startsWith('@')) {
+        // Private message: @username message
+        const spaceIndex = text.indexOf(' ');
         if (spaceIndex > 0) {
-            const receiver = message.substring(1, spaceIndex);
-            const content = message.substring(spaceIndex + 1);
-            messageObj = {
-                type: 'PRIVATE_MSG',
-                sender: username,
-                receiver: receiver,
-                content: content
-            };
+            message.type = 'PRIVATE_MSG';
+            message.receiver = text.substring(1, spaceIndex);
+            message.content = text.substring(spaceIndex + 1);
         } else {
             alert('Invalid private message format. Use: @username message');
             return;
         }
-    } else if (message.startsWith('/')) {
-        // API command
-        messageObj.type = 'API_REQUEST';
+    } else if (text.startsWith('/')) {
+        // Command message
+        if (text === '/quit') {
+            disconnect();
+            return;
+        }
+        message.type = 'API_REQUEST';
     } else {
         // Regular chat message
-        messageObj.type = 'CHAT';
+        message.type = 'CHAT';
     }
-    
-    // Send message through WebSocket
+
     try {
-        ws.send(JSON.stringify(messageObj));
+        ws.send(JSON.stringify(message));
+        console.log('[Send] Message sent:', message.type);
+
+        // Echo our own message for immediate feedback
+        if (message.type === 'CHAT') {
+            addMessage('CHAT', username, text);
+        }
     } catch (error) {
-        console.error('Failed to send message:', error);
-        alert('Failed to send message!');
+        console.error('[Send] Error sending message:', error);
     }
 }
 
-/**
- * Handle incoming messages from server
- */
-function handleMessage(message) {
-    console.log('Received message:', message);
-    
-    switch (message.type) {
-        case 'CONNECT':
-            addMessage('SYSTEM', 'Server', `${message.sender} joined the chat`);
-            break;
-            
-        case 'DISCONNECT':
-            addMessage('SYSTEM', 'Server', `${message.sender} left the chat`);
-            break;
-            
+/* 📁 File sending */
+function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Reset file input
+    e.target.value = '';
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert('File too large. Maximum size is 10MB.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        // Convert to base64 for text-based transfer
+        const base64Data = reader.result.split(',')[1];
+
+        // Send file via WebSocket
+        ws.send(JSON.stringify({
+            type: 'FILE_SEND',
+            sender: username,
+            fileName: file.name,
+            fileSize: file.size,
+            content: base64Data
+        }));
+
+        addMessage('SYSTEM', 'You', `📤 Uploading file: ${file.name} (${formatFileSize(file.size)})`);
+    };
+
+    reader.onerror = () => {
+        alert('Error reading file');
+    };
+
+    reader.readAsDataURL(file);
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/* 📥 Handle incoming messages */
+function handleMessage(msg) {
+    console.log('[Receive] Message received:', msg);
+
+    switch (msg.type) {
         case 'CHAT':
-            addMessage('CHAT', message.sender, message.content);
+            addMessage('CHAT', msg.sender, msg.content);
             break;
-            
         case 'PRIVATE_MSG':
-            if (message.receiver === username || message.sender === username) {
-                addMessage('PRIVATE', message.sender, 
-                    `@${message.receiver}: ${message.content}`);
-            }
+            addMessage('PRIVATE', msg.sender, `(Private) ${msg.content}`);
             break;
-            
         case 'API_RESPONSE':
-            addMessage('API', 'API Bot', message.content);
+            addMessage('API', 'API Bot', msg.content);
             break;
-            
-        case 'SYSTEM':
-            addMessage('SYSTEM', 'Server', message.content);
-            break;
-            
         case 'USER_LIST':
-            if (message.content) {
-                try {
-                    const users = JSON.parse(message.content);
-                    updateUserList(users);
-                } catch (e) {
-                    console.error('Failed to parse user list:', e);
-                }
-            }
+            const users = msg.content.replace('Online users: ', '').split(', ');
+            updateUserList(users);
             break;
-            
+        case 'SYSTEM':
+            addMessage('SYSTEM', 'Server', msg.content);
+            break;
+        case 'FILE_RESPONSE':
+            addMessage('SYSTEM', 'Server', msg.content);
+            break;
+        case 'AUTH_RESPONSE':
+            console.log('[Receive] Auth response:', msg.content);
+            break;
         default:
-            console.warn('Unknown message type:', message.type);
+            console.log('[Receive] Unknown message type:', msg.type);
+            addMessage('SYSTEM', 'Unknown', JSON.stringify(msg));
     }
 }
 
-/**
- * Disconnect from server
- */
+/* 🧹 Disconnect */
 function disconnect() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        // Send disconnect message before closing
+    if (ws) {
         try {
             ws.send(JSON.stringify({
                 type: 'DISCONNECT',
                 sender: username
             }));
-        } catch (e) {
-            console.error('Failed to send disconnect message:', e);
+        } catch (error) {
+            console.error('[Disconnect] Error sending disconnect message:', error);
         }
         ws.close();
     }
-    
-    ws = null;
+
     connected = false;
     chatPanel.style.display = 'none';
     connectionPanel.style.display = 'block';
+
+    // Clear chat area
     messageArea.innerHTML = '';
-    
-    console.log('Disconnected from server');
+    userList.innerHTML = '';
+
+    console.log('[Disconnect] Disconnected from server');
 }
 
-/**
- * Add message to chat area
- */
+/* 🪶 Message rendering */
 function addMessage(type, sender, content) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${type.toLowerCase()}`;
-    
-    const senderDiv = document.createElement('div');
-    senderDiv.className = 'message-sender';
-    senderDiv.textContent = sender;
-    
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
-    
-    // Add timestamp
-    const timestamp = new Date().toLocaleTimeString();
-    const timeDiv = document.createElement('span');
-    timeDiv.className = 'message-time';
-    timeDiv.textContent = ` (${timestamp})`;
-    
-    if (type !== 'SYSTEM') {
-        senderDiv.appendChild(timeDiv);
-        messageDiv.appendChild(senderDiv);
-    }
-    messageDiv.appendChild(contentDiv);
-    
-    messageArea.appendChild(messageDiv);
+    const div = document.createElement('div');
+    div.className = `message message-${type.toLowerCase()}`;
+
+    const time = new Date().toLocaleTimeString();
+    div.innerHTML = `
+        <div class="message-sender">
+            ${sender} <span class="message-time">${time}</span>
+        </div>
+        <div class="message-content">${content}</div>
+    `;
+
+    messageArea.appendChild(div);
     messageArea.scrollTop = messageArea.scrollHeight;
 }
 
-/**
- * Update user list
- */
+/* 👥 Update user list */
 function updateUserList(users) {
     userList.innerHTML = '';
-    users.forEach(user => {
-        const li = document.createElement('li');
-        li.textContent = user;
-        if (user === username) {
-            li.style.fontWeight = 'bold';
-            li.style.color = '#667eea';
-        }
-        userList.appendChild(li);
-    });
+    if (users && users.length > 0) {
+        users.forEach(user => {
+            if (user.trim()) {
+                const li = document.createElement('li');
+                li.textContent = user;
+                if (user === username) {
+                    li.style.fontWeight = 'bold';
+                    li.style.color = '#667eea';
+                }
+                userList.appendChild(li);
+            }
+        });
+    }
 }
 
-// Initialize
-console.log('Chat application loaded');
-console.log('Make sure the WebSocket bridge server is running on port 8889');
+// Add some helpful debug info
+console.log('ChatSystem Frontend Loaded');
+console.log('Available commands: /help, /joke, /quote, /weather <city>');
+console.log('Private messages: @username message');
+console.log('File upload: Click "Send File" button (up to 10MB)');
