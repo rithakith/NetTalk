@@ -11,7 +11,7 @@ public class Message implements Serializable {
     private static final long serialVersionUID = 1L;
     
     public enum MessageType {
-        CONNECT, DISCONNECT, CHAT, PRIVATE_MSG, USER_LIST, API_REQUEST, API_RESPONSE, SYSTEM
+        CONNECT, DISCONNECT, CHAT, PRIVATE_MSG, USER_LIST, API_REQUEST, API_RESPONSE, SYSTEM, TYPING_START, TYPING_STOP
     }
     
     private MessageType type;

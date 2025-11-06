@@ -325,6 +325,61 @@ button {
     font-size: 1.1em;
 }
 
+/* Typing Indicator Styles */
+.typing-indicator {
+    padding: 10px 15px;
+    margin: 5px 0;
+    background: #f8f9fa;
+    border-radius: 20px;
+    border-left: 4px solid #667eea;
+    display: none;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.typing-text {
+    color: #667eea;
+    font-style: italic;
+    font-size: 0.9em;
+    position: relative;
+}
+
+.typing-text::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: #667eea;
+    border-radius: 50%;
+    margin-left: 4px;
+    animation: typingDot 1.5s infinite;
+}
+
+@keyframes typingDot {
+    0%, 20% {
+        opacity: 0;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (max-width: 768px) {
     .chat-main {
         grid-template-columns: 1fr;
