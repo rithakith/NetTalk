@@ -6,6 +6,11 @@ let connected = false;
 let username = '';
 let ws = null; // WebSocket connection (if implemented)
 
+// Typing indicator variables
+let typingUsers = new Set(); // Users currently typing
+let typingTimeout = null; // Timeout for stopping typing indicator
+let isTyping = false; // Whether current user is typing
+
 // DOM Elements
 const connectionPanel = document.getElementById('connectionPanel');
 const chatPanel = document.getElementById('chatPanel');
@@ -42,8 +47,48 @@ messageForm.addEventListener('submit', (e) => {
     const message = messageInput.value.trim();
     if (!message) return;
     
+    // Stop typing indicator when sending message
+    stopTyping();
+    
     sendMessage(message);
     messageInput.value = '';
+});
+
+// Typing detection on message input
+messageInput.addEventListener('input', () => {
+    if (!connected) return;
+    
+    const value = messageInput.value.trim();
+    
+    if (value.length > 0 && !isTyping) {
+        // User started typing
+        startTyping();
+    } else if (value.length === 0 && isTyping) {
+        // User cleared input
+        stopTyping();
+    }
+    
+    // Reset typing timeout
+    if (isTyping) {
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            stopTyping();
+        }, 3000); // Stop typing after 3 seconds of inactivity
+    }
+});
+
+// Stop typing when user stops for a while or presses Enter
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && isTyping) {
+        stopTyping();
+    }
+});
+
+// Also stop typing when user leaves the input field
+messageInput.addEventListener('blur', () => {
+    if (isTyping) {
+        stopTyping();
+    }
 });
 
 // Disconnect Button Handler
@@ -200,6 +245,19 @@ function handleMessage(message) {
             addMessage('SYSTEM', 'Server', message.content);
             break;
             
+        case 'TYPING_START':
+            if (message.sender !== username) {
+                addTypingUser(message.sender);
+            }
+            break;
+            
+        case 'TYPING_STOP':
+            if (message.sender !== username) {
+                removeTypingUser(message.sender);
+            }
+            break;
+            break;
+            
         case 'USER_LIST':
             if (message.content) {
                 try {
@@ -235,11 +293,104 @@ function disconnect() {
     
     ws = null;
     connected = false;
+    
+    // Clean up typing state
+    isTyping = false;
+    typingUsers.clear();
+    clearTimeout(typingTimeout);
+    
     chatPanel.style.display = 'none';
     connectionPanel.style.display = 'block';
     messageArea.innerHTML = '';
     
     console.log('Disconnected from server');
+}
+
+/**
+ * Start typing indicator
+ */
+function startTyping() {
+    if (!isTyping && connected && ws) {
+        isTyping = true;
+        try {
+            ws.send(JSON.stringify({
+                type: 'TYPING_START',
+                sender: username
+            }));
+        } catch (error) {
+            console.error('Failed to send typing start:', error);
+        }
+    }
+}
+
+/**
+ * Stop typing indicator
+ */
+function stopTyping() {
+    if (isTyping && connected && ws) {
+        isTyping = false;
+        clearTimeout(typingTimeout);
+        try {
+            ws.send(JSON.stringify({
+                type: 'TYPING_STOP',
+                sender: username
+            }));
+        } catch (error) {
+            console.error('Failed to send typing stop:', error);
+        }
+    }
+}
+
+/**
+ * Add user to typing indicator
+ */
+function addTypingUser(user) {
+    typingUsers.add(user);
+    updateTypingIndicator();
+}
+
+/**
+ * Remove user from typing indicator
+ */
+function removeTypingUser(user) {
+    typingUsers.delete(user);
+    updateTypingIndicator();
+}
+
+/**
+ * Update typing indicator display
+ */
+function updateTypingIndicator() {
+    let typingIndicator = document.getElementById('typingIndicator');
+    
+    // Create typing indicator if it doesn't exist
+    if (!typingIndicator) {
+        typingIndicator = document.createElement('div');
+        typingIndicator.id = 'typingIndicator';
+        typingIndicator.className = 'typing-indicator';
+        messageArea.appendChild(typingIndicator);
+    }
+    
+    if (typingUsers.size > 0) {
+        const users = Array.from(typingUsers);
+        let text = '';
+        
+        if (users.length === 1) {
+            text = `${users[0]} is typing...`;
+        } else if (users.length === 2) {
+            text = `${users[0]} and ${users[1]} are typing...`;
+        } else {
+            text = `${users.slice(0, -1).join(', ')}, and ${users[users.length - 1]} are typing...`;
+        }
+        
+        typingIndicator.innerHTML = `<em class="typing-text">${text}</em>`;
+        typingIndicator.style.display = 'block';
+        
+        // Scroll to bottom to show typing indicator
+        messageArea.scrollTop = messageArea.scrollHeight;
+    } else {
+        typingIndicator.style.display = 'none';
+    }
 }
 
 /**

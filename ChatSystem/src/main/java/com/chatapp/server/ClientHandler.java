@@ -104,6 +104,16 @@ public class ClientHandler implements Runnable {
                 running = false;
                 break;
                 
+            case TYPING_START:
+                // Broadcast typing start to other users
+                server.broadcastTypingStatus(message, this);
+                break;
+                
+            case TYPING_STOP:
+                // Broadcast typing stop to other users
+                server.broadcastTypingStatus(message, this);
+                break;
+                
             default:
                 System.out.println("[ClientHandler] Unknown message type: " + message.getType());
         }

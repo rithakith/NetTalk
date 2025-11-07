@@ -140,6 +140,20 @@ public class ChatServer {
     }
     
     /**
+     * Broadcast typing status to all other clients (excluding sender)
+     */
+    public void broadcastTypingStatus(Message message, ClientHandler sender) {
+        // Send typing status to all clients except the sender
+        for (ClientHandler handler : userManager.getAllHandlers()) {
+            if (handler != sender) {
+                handler.sendMessage(message);
+            }
+        }
+        
+        System.out.println("[ChatServer] Typing status: " + message.getSender() + " - " + message.getType());
+    }
+
+    /**
      * Send private message to specific user
      */
     public void sendPrivateMessage(Message message) {

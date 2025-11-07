@@ -137,6 +137,16 @@ public class WebSocketBridgeServer extends org.java_websocket.server.WebSocketSe
                     msg = new Message(Message.MessageType.DISCONNECT,
                         jsonMsg.get("sender").getAsString(), "");
                     break;
+                    
+                case "TYPING_START":
+                    msg = new Message(Message.MessageType.TYPING_START,
+                        jsonMsg.get("sender").getAsString(), "");
+                    break;
+                    
+                case "TYPING_STOP":
+                    msg = new Message(Message.MessageType.TYPING_STOP,
+                        jsonMsg.get("sender").getAsString(), "");
+                    break;
             }
             
             if (msg != null && clientConn.tcpOut != null) {
