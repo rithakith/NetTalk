@@ -9,6 +9,19 @@ import java.util.Base64;
 
 /**
  * MEMBER 2 CONTRIBUTION: Concurrent Client Handler
+ * 
+ * Network Programming Concept: Multithreading with ExecutorService (ThreadPool)
+ * 
+ * This class demonstrates how to efficiently manage multiple concurrent client
+ * connections using Java's thread pool pattern. Instead of creating a new thread
+ * for each client (which doesn't scale), we use ExecutorService to manage a
+ * pool of reusable threads.
+ * 
+ * Key Concepts Demonstrated:
+ * - ExecutorService and ThreadPool for scalability
+ * - Runnable pattern for concurrent task execution
+ * - Efficient resource management with thread reuse
+ * - Preventing server overload with bounded thread pools
  */
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -17,19 +30,19 @@ public class ClientHandler implements Runnable {
     private ObjectInputStream in;
     private String username;
     private volatile boolean running;
-
+    
     public ClientHandler(Socket socket, ChatServer server) {
         this.socket = socket;
         this.server = server;
         this.running = true;
     }
-
+    
     @Override
     public void run() {
         try {
             // Set up I/O streams
             out = new ObjectOutputStream(socket.getOutputStream());
-            out.flush();
+            out.flush(); // Important: flush the stream header
             in = new ObjectInputStream(socket.getInputStream());
 
             System.out.println("[ClientHandler-" + Thread.currentThread().getName() +
@@ -53,7 +66,10 @@ public class ClientHandler implements Runnable {
             cleanup();
         }
     }
-
+    
+    /**
+     * Process received message based on type
+     */
     private void processMessage(Message message) {
         switch (message.getType()) {
             case REGISTER:
@@ -69,10 +85,12 @@ public class ClientHandler implements Runnable {
                 // Broadcast regular chat message
                 server.broadcastMessage(message);
                 break;
+                
             case PRIVATE_MSG:
                 // Send private message to specific user
                 server.sendPrivateMessage(message);
                 break;
+                
             case API_REQUEST:
                 // Handle API request (Member 5's feature)
                 server.handleApiRequest(message, this);
@@ -83,6 +101,17 @@ public class ClientHandler implements Runnable {
             case DISCONNECT:
                 running = false;
                 break;
+
+            case TYPING_START:
+                // Broadcast typing start to other users
+                server.broadcastTypingStatus(message, this);
+                break;
+
+            case TYPING_STOP:
+                // Broadcast typing stop to other users
+                server.broadcastTypingStatus(message, this);
+                break;
+
             default:
                 System.out.println("[ClientHandler] Unknown message type: " + message.getType());
         }
@@ -209,7 +238,9 @@ public class ClientHandler implements Runnable {
         if (bytes < 1024 * 1024) return (bytes / 1024) + " KB";
         return (bytes / (1024 * 1024)) + " MB";
     }
-
+    /**
+     * Send message to this client
+     */
     public void sendMessage(Message message) {
         try {
             out.writeObject(message);
@@ -219,20 +250,20 @@ public class ClientHandler implements Runnable {
             running = false;
         }
     }
-
+    
     /**
      * Cleanup resources
      */
     private void cleanup() {
         running = false;
-
+        
         // Unregister from server
         if (username != null) {
             server.unregisterClient(username);
-            server.broadcastMessage(new Message(Message.MessageType.SYSTEM, "Server",
-                    username + " has left the chat"));
+            server.broadcastMessage(new Message(Message.MessageType.SYSTEM, "Server", 
+                username + " has left the chat"));
         }
-
+        
         // Close resources
         try {
             if (in != null) in.close();
@@ -241,13 +272,14 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("[ClientHandler] Error closing resources: " + e.getMessage());
         }
+        
         System.out.println("[ClientHandler] Cleaned up resources for: " + username);
     }
-
+    
     public String getUsername() {
         return username;
     }
-
+    
     public void disconnect() {
         running = false;
         try {

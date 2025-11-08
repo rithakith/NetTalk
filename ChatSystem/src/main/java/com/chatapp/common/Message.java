@@ -10,7 +10,7 @@ import java.util.Objects;
  */
 public class Message implements Serializable {
     private static final long serialVersionUID = 1L;
-
+    
     public enum MessageType {
         CONNECT, // legacy
         CONNECT_ACK,
@@ -27,9 +27,11 @@ public class Message implements Serializable {
         // File related
         FILE_SEND,
         FILE_RESPONSE,
-        DISCONNECT
+        DISCONNECT,
+        TYPING_START,
+        TYPING_STOP
     }
-
+    
     private MessageType type;
     private String sender;
     private String receiver; // for private messages
@@ -40,7 +42,7 @@ public class Message implements Serializable {
     private String fileName;
     private long fileSize;
     private LocalDateTime timestamp;
-
+    
     public Message(MessageType type, String sender, String content) {
         this.type = type;
         this.sender = sender;
@@ -61,14 +63,17 @@ public class Message implements Serializable {
         this.fileSize = fileSize;
         this.receiver = receiver;
     }
-
+    
     // Getters and setters
     public MessageType getType() { return type; }
     public void setType(MessageType type) { this.type = type; }
+    
     public String getSender() { return sender; }
     public void setSender(String sender) { this.sender = sender; }
+    
     public String getReceiver() { return receiver; }
     public void setReceiver(String receiver) { this.receiver = receiver; }
+    
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
@@ -81,16 +86,10 @@ public class Message implements Serializable {
 
     public LocalDateTime getTimestamp() { return timestamp; }
     public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-
+    
     @Override
     public String toString() {
-        return "Message{" +
-                "type=" + type +
-                ", sender='" + sender + '\'' +
-                ", receiver='" + receiver + '\'' +
-                ", content='" + content + '\'' +
-                (fileName != null ? ", file=" + fileName + "(" + fileSize + " bytes)" : "") +
-                '}';
+        return String.format("[%s] %s: %s", timestamp.toString(), sender, content);
     }
 
     @Override

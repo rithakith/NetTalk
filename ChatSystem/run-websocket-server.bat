@@ -1,7 +1,14 @@
 @echo off
 echo Starting WebSocket Bridge Server on port 8889...
 echo.
+echo Features included:
+echo - Real-time chat messaging
+echo - Private messaging support
+echo - Typing indicators (NEW!)
+echo - API integration
+echo.
 echo NOTE: This requires Java-WebSocket and Gson libraries in the lib/ folder
+echo       Make sure ChatServer is running on port 8888 first!
 echo.
 
 if not exist lib\Java-WebSocket-1.5.3.jar (
