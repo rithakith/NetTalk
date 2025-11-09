@@ -56,16 +56,29 @@ public class UserManager {
     public boolean registerUser(String username, ClientHandler handler) {
         synchronized (userLock) {
             if (activeUsers.containsKey(username)) {
-                System.out.println("[UserManager] Registration failed: username '" +
-                        username + "' already exists");
-                return false;
+                ClientHandler oldHandler = activeUsers.get(username);
+                if (oldHandler != null) {
+                    System.out.println("[UserManager] Duplicate session detected for user: " + username);
+                    oldHandler.sendMessage(new Message(
+                            Message.MessageType.SYSTEM,
+                            "Server",
+                            "⚠️ You have been logged out because a new session has been started elsewhere."
+                    ));
+                    oldHandler.disconnect();
+                }
+                // Replace old session with new
+                activeUsers.put(username, handler);
+                System.out.println("[UserManager] Replaced old session for: " + username);
+                return true;
             }
 
+            // No existing session — add normally
             activeUsers.put(username, handler);
             System.out.println("[UserManager] User '" + username + "' registered. Total users: " + activeUsers.size());
             return true;
         }
     }
+
 
     /**
      * Unregister a user - thread-safe operation

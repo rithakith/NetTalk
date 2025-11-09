@@ -1,172 +1,205 @@
-// =======================
-// AUTHENTICATION HANDLING
-// =======================
+let currentAuthWs = null;
+let chatWs = null;
 let currentUser = null;
 
-// Reference DOM elements
-const authPanel = document.getElementById("authPanel");
-const connectionPanel = document.getElementById("connectionPanel");
-const chatPanel = document.getElementById("chatPanel");
-const currentUsernameDisplay = document.getElementById("currentUsername");
-
-// Buttons
+// ----------------------
+// STEP 1: AUTH (LOGIN + REGISTER)
+// ----------------------
 const loginBtn = document.getElementById("loginBtn");
 const registerBtn = document.getElementById("registerBtn");
 
-// Input fields
-const authUsername = document.getElementById("authUsername");
-const authPassword = document.getElementById("authPassword");
+loginBtn.onclick = () => handleAuth("LOGIN");
+registerBtn.onclick = () => handleAuth("REGISTER");
 
-// Initialize WebSocket for Authentication
-let currentAuthWs = new WebSocket("ws://localhost:8888/auth");
+function handleAuth(authType) {
+  const username = document.getElementById("authUsername").value.trim();
+  const password = document.getElementById("authPassword").value.trim();
 
-currentAuthWs.onopen = () => {
-  console.log("[Auth] Connected to authentication service");
-};
-
-currentAuthWs.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log("[Auth Response]", data);
-
-  if (data.type === "AUTH_RESPONSE") {
-    alert(data.content);
-
-    // ✅ If authentication or registration is successful
-    if (
-      data.content.includes("LOGIN_SUCCESS") ||
-      data.content.includes("REGISTER_SUCCESS")
-    ) {
-      currentUser = authUsername.value;
-      authPanel.style.display = "none";
-      connectToChatServer(currentUser);
-    }
+  if (!username || !password) {
+    alert("Please enter both username and password");
+    return;
   }
-};
 
-currentAuthWs.onerror = (error) => {
-  console.error("[Auth] WebSocket Error:", error);
-  alert("Authentication service connection failed.");
-};
+  // Connect to WebSocket Auth Server (port 8889)
+  currentAuthWs = new WebSocket("ws://localhost:8889");
 
-// Handle Login and Register buttons
-loginBtn.addEventListener("click", () => {
-  const payload = {
-    type: "LOGIN",
-    username: authUsername.value.trim(),
-    password: authPassword.value.trim(),
-  };
-  currentAuthWs.send(JSON.stringify(payload));
-});
-
-registerBtn.addEventListener("click", () => {
-  const payload = {
-    type: "REGISTER",
-    username: authUsername.value.trim(),
-    password: authPassword.value.trim(),
-  };
-  currentAuthWs.send(JSON.stringify(payload));
-});
-
-// =======================
-// CHAT CONNECTION HANDLING
-// =======================
-let chatSocket;
-
-function connectToChatServer(username) {
-  const serverHost = "localhost";
-  const serverPort = 8888;
-  const wsUrl = `ws://${serverHost}:${serverPort}/chat?username=${username}`;
-
-  chatSocket = new WebSocket(wsUrl);
-
-  chatSocket.onopen = () => {
-    console.log("[Chat] Connected to chat server");
-    currentUsernameDisplay.textContent = username;
-    chatPanel.style.display = "block";
+  currentAuthWs.onopen = () => {
+    console.log(`[Auth] Sending ${authType} for user: ${username}`);
+    currentAuthWs.send(
+      JSON.stringify({
+        type: authType, // 'REGISTER' or 'LOGIN'
+        sender: username,
+        content: password,
+      })
+    );
   };
 
-  chatSocket.onmessage = (event) => {
-    const messageArea = document.getElementById("messageArea");
+  currentAuthWs.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    console.log("[Auth Response]", data);
 
-    if (data.type === "USER_LIST") {
-      updateUserList(data.users);
-    } else if (data.type === "CHAT_MESSAGE") {
-      const msgDiv = document.createElement("div");
-      msgDiv.className = "message";
-      msgDiv.textContent = `${data.sender}: ${data.message}`;
-      messageArea.appendChild(msgDiv);
-      messageArea.scrollTop = messageArea.scrollHeight;
+    if (data.type === "AUTH_RESPONSE") {
+      alert(data.content);
+
+      if (data.content.includes("SUCCESS")) {
+        // Save current user and move to chat panel
+        currentUser = username;
+        document.getElementById("authPanel").style.display = "none";
+        document.getElementById("chatPanel").style.display = "block";
+        document.getElementById("currentUsername").innerText = username;
+
+        // Now connect to chat server via WebSocket bridge
+        connectToChatServer(username);
+      }
     }
   };
 
-  chatSocket.onclose = () => {
-    console.log("[Chat] Disconnected from chat server");
-    alert("Disconnected from server.");
-    chatPanel.style.display = "none";
-    authPanel.style.display = "block";
+  currentAuthWs.onerror = (err) => {
+    console.error("[Auth] WebSocket error:", err);
+    alert("Connection error during authentication");
   };
 }
 
-// =======================
-// CHAT MESSAGE HANDLING
-// =======================
+// ----------------------
+// STEP 2: CONNECT TO CHAT
+// ----------------------
+function connectToChatServer(username) {
+  chatWs = new WebSocket("ws://localhost:8889");
+
+  chatWs.onopen = () => {
+    console.log(`[Chat] Connected as ${username}`);
+    chatWs.send(
+      JSON.stringify({
+        type: "JOIN",
+        sender: username,
+        content: "Joined the chat",
+      })
+    );
+  };
+
+  chatWs.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log("[Chat Message]", data);
+
+    const messageArea = document.getElementById("messageArea");
+
+    if (data.type === "USER_LIST") {
+      updateUserList(data.content.split(","));
+    } else if (data.type === "MESSAGE" || data.type === "PRIVATE_MESSAGE") {
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add(
+        "message",
+        data.sender === currentUser ? "own-message" : "other-message"
+      );
+      messageDiv.innerHTML = `<strong>${data.sender}:</strong> ${data.content}`;
+      messageArea.appendChild(messageDiv);
+      messageArea.scrollTop = messageArea.scrollHeight;
+    } else if (data.type === "FILE") {
+      const fileDiv = document.createElement("div");
+      fileDiv.classList.add("file-message");
+      fileDiv.innerHTML = `<strong>${data.sender}</strong> sent a file: <a href="${data.content}" target="_blank">Download</a>`;
+      messageArea.appendChild(fileDiv);
+    } else if (data.type === "SERVER_INFO") {
+      const infoDiv = document.createElement("div");
+      infoDiv.classList.add("server-message");
+      infoDiv.textContent = data.content;
+      messageArea.appendChild(infoDiv);
+    }
+  };
+
+  chatWs.onclose = () => {
+    console.log("[Chat] Disconnected from chat server");
+  };
+
+  chatWs.onerror = (err) => {
+    console.error("[Chat] WebSocket error:", err);
+  };
+}
+
+// ----------------------
+// STEP 3: MESSAGE SENDING
+// ----------------------
 const messageForm = document.getElementById("messageForm");
 const messageInput = document.getElementById("messageInput");
 
 messageForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const message = messageInput.value.trim();
-  if (message && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-    const payload = { type: "CHAT_MESSAGE", message };
-    chatSocket.send(JSON.stringify(payload));
-    messageInput.value = "";
-  }
+  if (!message) return;
+
+  chatWs.send(
+    JSON.stringify({
+      type: "MESSAGE",
+      sender: currentUser,
+      content: message,
+    })
+  );
+  messageInput.value = "";
 });
 
-// =======================
-// USER LIST MANAGEMENT
-// =======================
+// ----------------------
+// STEP 4: FILE UPLOAD
+// ----------------------
+const fileBtn = document.getElementById("fileBtn");
+const fileInput = document.getElementById("fileInput");
+
+fileBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    chatWs.send(
+      JSON.stringify({
+        type: "FILE",
+        sender: currentUser,
+        content: reader.result,
+        filename: file.name,
+      })
+    );
+  };
+  reader.readAsDataURL(file);
+};
+
+// ----------------------
+// STEP 5: DISCONNECT
+// ----------------------
+document.getElementById("disconnectBtn").onclick = () => {
+  if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+    chatWs.close();
+    alert("You have disconnected from the chat.");
+    document.getElementById("chatPanel").style.display = "none";
+    document.getElementById("authPanel").style.display = "block";
+  }
+};
+
+// ----------------------
+// STEP 6: USER LIST UPDATE
+// ----------------------
 function updateUserList(users) {
   const userList = document.getElementById("userList");
   userList.innerHTML = "";
-  users.forEach((u) => {
+  users.forEach((user) => {
     const li = document.createElement("li");
-    li.textContent = u;
+    li.textContent = user;
     userList.appendChild(li);
   });
 }
 
-// =======================
-// DISCONNECT HANDLING
-// =======================
-const disconnectBtn = document.getElementById("disconnectBtn");
-disconnectBtn.addEventListener("click", () => {
-  if (chatSocket) chatSocket.close();
-  chatPanel.style.display = "none";
-  authPanel.style.display = "block";
-});
-
-// =======================
-// FILE UPLOAD HANDLING
-// =======================
-const fileBtn = document.getElementById("fileBtn");
-const fileInput = document.getElementById("fileInput");
-
-fileBtn.addEventListener("click", () => fileInput.click());
-
-fileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (file && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const payload = {
-        type: "FILE_MESSAGE",
-        fileName: file.name,
-        fileData: reader.result,
-      };
-      chatSocket.send(JSON.stringify(payload));
-    };
-    reader.readAsDataURL(file);
-  }
+// ----------------------
+// STEP 7: API BUTTONS
+// ----------------------
+document.querySelectorAll(".btn-api").forEach((btn) => {
+  btn.onclick = () => {
+    const cmd = btn.getAttribute("data-cmd");
+    chatWs.send(
+      JSON.stringify({
+        type: "MESSAGE",
+        sender: currentUser,
+        content: cmd,
+      })
+    );
+  };
 });

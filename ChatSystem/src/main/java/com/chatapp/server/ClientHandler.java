@@ -161,8 +161,8 @@ public class ClientHandler implements Runnable {
             if (activated) {
                 this.username = user;
                 String role = UserAuthService.getRole(user);
-                sendMessage(new Message(Message.MessageType.AUTH_RESPONSE, "Server", "LOGIN_SUCCESS: Welcome back, " + user + " (Role: " + role + ")"));
-                sendMessage(new Message(Message.MessageType.SYSTEM, "Server", "Welcome to the chat, " + user + "!"));
+                sendMessage(new Message(Message.MessageType.AUTH_RESPONSE, "Server",
+                        "LOGIN_SUCCESS: Welcome back, " + user + " (Role: " + role + ")"));
                 server.broadcastMessage(new Message(Message.MessageType.SYSTEM, "Server", user + " has joined the chat"));
                 server.getUserManager().broadcastUserList();
                 System.out.println("[ClientHandler] Login successful for: " + user + " (Role: " + role + ")");
