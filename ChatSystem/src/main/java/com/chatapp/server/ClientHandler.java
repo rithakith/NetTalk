@@ -114,6 +114,16 @@ public class ClientHandler implements Runnable {
                 server.broadcastTypingStatus(message, this);
                 break;
                 
+            case MESSAGE_DELIVERED:
+                // Handle message delivery confirmation
+                server.handleMessageDelivered(message.getContent(), username);
+                break;
+                
+            case MESSAGE_SEEN:
+                // Handle message seen confirmation
+                server.handleMessageSeen(message.getContent(), username);
+                break;
+                
             default:
                 System.out.println("[ClientHandler] Unknown message type: " + message.getType());
         }

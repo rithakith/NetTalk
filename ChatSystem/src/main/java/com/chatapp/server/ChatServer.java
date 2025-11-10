@@ -35,11 +35,15 @@ public class ChatServer {
     // Member 4's component
     private UserManager userManager;
     
+    // Message tracking component
+    private MessageTracker messageTracker;
+    
     // Server state
     private volatile boolean running;
     
     public ChatServer() {
         this.userManager = new UserManager();
+        this.messageTracker = new MessageTracker(userManager);
         this.clientExecutor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.running = false;
         
@@ -129,11 +133,20 @@ public class ChatServer {
         // Add to chat history (Member 4's thread-safe operation)
         if (message.getType() == Message.MessageType.CHAT) {
             userManager.addToChatHistory(message);
+            
+            // Track message for delivery and seen status
+            messageTracker.trackMessage(message);
         }
         
-        // Send to all clients
+        // Send to all clients and mark as delivered
         for (ClientHandler handler : userManager.getAllHandlers()) {
             handler.sendMessage(message);
+            
+            // Mark as delivered to each user (excluding sender)
+            if (message.getType() == Message.MessageType.CHAT && 
+                !handler.getUsername().equals(message.getSender())) {
+                messageTracker.markDelivered(message.getMessageId(), handler.getUsername());
+            }
         }
         
         System.out.println("[ChatServer] Broadcasted: " + message.getSender() + ": " + message.getContent());
@@ -179,6 +192,34 @@ public class ChatServer {
                 senderHandler.sendMessage(errorMsg);
             }
         }
+    }
+    
+    /**
+     * Handle message delivered confirmation
+     */
+    public void handleMessageDelivered(String messageId, String username) {
+        messageTracker.markDelivered(messageId, username);
+    }
+    
+    /**
+     * Handle message seen confirmation
+     */
+    public void handleMessageSeen(String messageId, String username) {
+        messageTracker.markSeen(messageId, username);
+    }
+    
+    /**
+     * Mark all messages from sender as seen by viewer
+     */
+    public void markAllMessagesSeen(String viewerUsername, String senderUsername) {
+        messageTracker.markAllMessagesSeen(viewerUsername, senderUsername);
+    }
+    
+    /**
+     * Get MessageTracker instance
+     */
+    public MessageTracker getMessageTracker() {
+        return messageTracker;
     }
     
     /**

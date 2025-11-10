@@ -380,6 +380,39 @@ button {
     }
 }
 
+/* Message Status Indicators */
+.message-status {
+    margin-left: 5px;
+    font-size: 0.8em;
+}
+
+.status-icon {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.status-sent {
+    color: #999;
+}
+
+.status-delivered {
+    color: #666;
+}
+
+.status-seen {
+    color: #667eea;
+}
+
+/* Message hover effect for better status visibility */
+.message:hover .message-status {
+    opacity: 1;
+}
+
+.message-status {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
 @media (max-width: 768px) {
     .chat-main {
         grid-template-columns: 1fr;
