@@ -15,6 +15,15 @@ let isTyping = false; // Whether current user is typing
 let messageMap = new Map(); // Map of messageId to message element
 let messageStatusMap = new Map(); // Map of messageId to status
 let visibilityObserver = null; // Intersection Observer for message visibility
+// Local Storage keys
+const STORAGE_KEYS = {
+    MESSAGES: 'chatMessages',
+    USERNAME: 'lastUsername',
+    SESSION: 'chatSession',
+    SERVER_HOST: 'serverHost',
+    SERVER_PORT: 'serverPort',
+    MAX_MESSAGES: 100 // Maximum messages to store
+};
 
 // DOM Elements
 const connectionPanel = document.getElementById('connectionPanel');
@@ -27,6 +36,7 @@ const currentUsernameSpan = document.getElementById('currentUsername');
 const disconnectBtn = document.getElementById('disconnectBtn');
 const userList = document.getElementById('userList');
 const apiButtons = document.querySelectorAll('.btn-api');
+const statusIndicator = document.getElementById('statusIndicator');
 
 // Connect Form Handler
 connectForm.addEventListener('submit', (e) => {
@@ -40,6 +50,12 @@ connectForm.addEventListener('submit', (e) => {
         alert('Please enter a username');
         return;
     }
+    
+    // Save username to local storage
+    saveUsername(username);
+    
+    // Save server connection details
+    saveConnectionDetails(serverHost, serverPort);
     
     // Simulate connection (in real implementation, establish WebSocket connection)
     connectToServer(username, serverHost, serverPort);
@@ -127,10 +143,17 @@ function connectToServer(user, host, port) {
             // Send CONNECT message
             ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
             
+            // Save session state
+            saveSession(user, host, port);
+            
             // Update UI
             connectionPanel.style.display = 'none';
             chatPanel.style.display = 'block';
             currentUsernameSpan.textContent = username;
+            updateStatusIndicator('connected');
+            
+            // Load previous messages from local storage
+            loadMessagesFromStorage();
             
             // Add system message
             addMessage('SYSTEM', 'Server', `Connecting as ${username}...`);
@@ -156,8 +179,27 @@ function connectToServer(user, host, port) {
         
         ws.onclose = () => {
             console.log('WebSocket connection closed');
-            connected = false;
-            disconnect();
+            
+            if (connected) {
+                // Unexpected disconnect - try to reconnect
+                connected = false;
+                updateStatusIndicator('disconnected');
+                addMessage('SYSTEM', 'Server', 'Connection lost. Attempting to reconnect...');
+                
+                // Wait 2 seconds and try to reconnect
+                setTimeout(() => {
+                    const sessionData = localStorage.getItem(STORAGE_KEYS.SESSION);
+                    if (sessionData) {
+                        const session = JSON.parse(sessionData);
+                        console.log('Attempting to reconnect...');
+                        updateStatusIndicator('connecting');
+                        connectToServer(session.username, session.host, session.port);
+                    }
+                }, 2000);
+            } else {
+                // Intentional disconnect
+                disconnect();
+            }
         };
         
     } catch (error) {
@@ -315,6 +357,9 @@ function disconnect() {
     ws = null;
     connected = false;
     
+    // Clear session state
+    clearSession();
+    
     // Clean up typing state
     isTyping = false;
     typingUsers.clear();
@@ -463,6 +508,13 @@ function addMessage(type, sender, content, messageId = null, status = null) {
     if (type === 'CHAT' && sender !== username && messageId) {
         setupMessageVisibility(messageDiv, messageId);
     }
+    // Save message to local storage
+    saveMessageToStorage({
+        type: type,
+        sender: sender,
+        content: content,
+        timestamp: new Date().toISOString()
+    });
 }
 
 /**
@@ -582,6 +634,268 @@ function setupMessageVisibility(messageElement, messageId) {
     visibilityObserver.observe(messageElement);
 }
 
+ * Update connection status indicator
+ */
+function updateStatusIndicator(status) {
+    if (!statusIndicator) return;
+    
+    switch (status) {
+        case 'connected':
+            statusIndicator.textContent = '🟢';
+            statusIndicator.title = 'Connected';
+            break;
+        case 'connecting':
+            statusIndicator.textContent = '🟡';
+            statusIndicator.title = 'Connecting...';
+            break;
+        case 'disconnected':
+            statusIndicator.textContent = '🔴';
+            statusIndicator.title = 'Disconnected';
+            break;
+        default:
+            statusIndicator.textContent = '⚪';
+            statusIndicator.title = 'Unknown';
+    }
+}
+
 // Initialize
 console.log('Chat application loaded');
 console.log('Make sure the WebSocket bridge server is running on port 8889');
+
+// Try to restore previous session first
+const sessionRestored = restoreSession();
+
+// If no session restored, load last username if available
+if (!sessionRestored) {
+    loadLastUsername();
+}
+
+/**
+ * Local Storage Functions
+ */
+
+/**
+ * Save message to local storage
+ */
+function saveMessageToStorage(message) {
+    try {
+        let messages = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+        
+        // Add new message
+        messages.push(message);
+        
+        // Keep only last MAX_MESSAGES
+        if (messages.length > STORAGE_KEYS.MAX_MESSAGES) {
+            messages = messages.slice(-STORAGE_KEYS.MAX_MESSAGES);
+        }
+        
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
+    } catch (error) {
+        console.error('Failed to save message to local storage:', error);
+    }
+}
+
+/**
+ * Load messages from local storage
+ */
+function loadMessagesFromStorage() {
+    try {
+        const messages = JSON.parse(localStorage.getItem(STORAGE_KEYS.MESSAGES)) || [];
+        
+        if (messages.length > 0) {
+            // Add separator to show previous messages
+            const separatorDiv = document.createElement('div');
+            separatorDiv.className = 'message message-system';
+            separatorDiv.innerHTML = '<div class="message-content"><em>--- Previous Messages ---</em></div>';
+            messageArea.appendChild(separatorDiv);
+            
+            // Display stored messages
+            messages.forEach(msg => {
+                displayStoredMessage(msg);
+            });
+            
+            // Add another separator
+            const separator2Div = document.createElement('div');
+            separator2Div.className = 'message message-system';
+            separator2Div.innerHTML = '<div class="message-content"><em>--- New Session ---</em></div>';
+            messageArea.appendChild(separator2Div);
+            
+            messageArea.scrollTop = messageArea.scrollHeight;
+        }
+    } catch (error) {
+        console.error('Failed to load messages from local storage:', error);
+    }
+}
+
+/**
+ * Display a stored message from local storage
+ */
+function displayStoredMessage(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message message-${message.type.toLowerCase()} message-stored`;
+    
+    const senderDiv = document.createElement('div');
+    senderDiv.className = 'message-sender';
+    senderDiv.textContent = message.sender;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = message.content;
+    
+    // Format stored timestamp
+    let timestamp = 'Unknown time';
+    try {
+        const date = new Date(message.timestamp);
+        timestamp = date.toLocaleString();
+    } catch (e) {
+        console.error('Failed to parse timestamp:', e);
+    }
+    
+    const timeDiv = document.createElement('span');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = ` (${timestamp})`;
+    
+    if (message.type !== 'SYSTEM') {
+        senderDiv.appendChild(timeDiv);
+        messageDiv.appendChild(senderDiv);
+    }
+    messageDiv.appendChild(contentDiv);
+    
+    messageArea.appendChild(messageDiv);
+}
+
+/**
+ * Clear all messages from local storage
+ */
+function clearMessagesFromStorage() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+        console.log('Messages cleared from local storage');
+    } catch (error) {
+        console.error('Failed to clear messages from local storage:', error);
+    }
+}
+
+/**
+ * Save username to local storage
+ */
+function saveUsername(user) {
+    try {
+        localStorage.setItem(STORAGE_KEYS.USERNAME, user);
+    } catch (error) {
+        console.error('Failed to save username to local storage:', error);
+    }
+}
+
+/**
+ * Load last username from local storage
+ */
+function loadLastUsername() {
+    try {
+        const lastUser = localStorage.getItem(STORAGE_KEYS.USERNAME);
+        if (lastUser) {
+            document.getElementById('username').value = lastUser;
+        }
+        
+        // Load saved server details
+        const savedHost = localStorage.getItem(STORAGE_KEYS.SERVER_HOST);
+        const savedPort = localStorage.getItem(STORAGE_KEYS.SERVER_PORT);
+        if (savedHost) {
+            document.getElementById('serverHost').value = savedHost;
+        }
+        if (savedPort) {
+            document.getElementById('serverPort').value = savedPort;
+        }
+    } catch (error) {
+        console.error('Failed to load username from local storage:', error);
+    }
+}
+
+/**
+ * Save session state to local storage
+ */
+function saveSession(user, host, port) {
+    try {
+        const sessionData = {
+            username: user,
+            host: host,
+            port: port,
+            timestamp: new Date().toISOString(),
+            connected: true
+        };
+        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(sessionData));
+        console.log('Session saved to local storage');
+    } catch (error) {
+        console.error('Failed to save session to local storage:', error);
+    }
+}
+
+/**
+ * Clear session state from local storage
+ */
+function clearSession() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.SESSION);
+        console.log('Session cleared from local storage');
+    } catch (error) {
+        console.error('Failed to clear session from local storage:', error);
+    }
+}
+
+/**
+ * Save connection details to local storage
+ */
+function saveConnectionDetails(host, port) {
+    try {
+        localStorage.setItem(STORAGE_KEYS.SERVER_HOST, host);
+        localStorage.setItem(STORAGE_KEYS.SERVER_PORT, port);
+    } catch (error) {
+        console.error('Failed to save connection details:', error);
+    }
+}
+
+/**
+ * Restore previous session if exists
+ */
+function restoreSession() {
+    try {
+        const sessionData = localStorage.getItem(STORAGE_KEYS.SESSION);
+        if (sessionData) {
+            const session = JSON.parse(sessionData);
+            
+            // Check if session is recent (within last 24 hours)
+            const sessionTime = new Date(session.timestamp);
+            const now = new Date();
+            const hoursDiff = (now - sessionTime) / (1000 * 60 * 60);
+            
+            if (hoursDiff < 24 && session.connected) {
+                console.log('Restoring previous session for:', session.username);
+                
+                // Auto-reconnect
+                username = session.username;
+                document.getElementById('username').value = session.username;
+                document.getElementById('serverHost').value = session.host;
+                document.getElementById('serverPort').value = session.port;
+                
+                // Attempt to reconnect
+                connectToServer(session.username, session.host, session.port);
+                
+                return true;
+            } else {
+                console.log('Session expired or disconnected');
+                clearSession();
+            }
+        }
+    } catch (error) {
+        console.error('Failed to restore session:', error);
+    }
+    return false;
+}
+
+// Add clear messages button functionality (optional - can be added to HTML)
+window.clearChatHistory = function() {
+    if (confirm('Are you sure you want to clear all chat history from local storage?')) {
+        clearMessagesFromStorage();
+        alert('Chat history cleared!');
+    }
+};
