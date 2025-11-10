@@ -141,11 +141,28 @@ button {
 #connectionStatus {
     color: #666;
     font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 #currentUsername {
     font-weight: bold;
     color: #667eea;
+}
+
+.status-indicator {
+    font-size: 0.8em;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .chat-main {
@@ -378,6 +395,22 @@ button {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Stored Messages Styles */
+.message-stored {
+    opacity: 0.8;
+    background: #f8f9fa;
+    border-left: 3px solid #999;
+}
+
+.message-stored .message-sender {
+    color: #666;
+}
+
+.message-stored .message-time {
+    font-size: 0.75em;
+    color: #999;
 }
 
 @media (max-width: 768px) {
