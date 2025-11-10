@@ -429,14 +429,6 @@ function removeTypingUser(user) {
 function updateTypingIndicator() {
     let typingIndicator = document.getElementById('typingIndicator');
     
-    // Create typing indicator if it doesn't exist
-    if (!typingIndicator) {
-        typingIndicator = document.createElement('div');
-        typingIndicator.id = 'typingIndicator';
-        typingIndicator.className = 'typing-indicator';
-        messageArea.appendChild(typingIndicator);
-    }
-    
     if (typingUsers.size > 0) {
         const users = Array.from(typingUsers);
         let text = '';
@@ -449,13 +441,38 @@ function updateTypingIndicator() {
             text = `${users.slice(0, -1).join(', ')}, and ${users[users.length - 1]} are typing...`;
         }
         
+        // Create or update typing indicator
+        if (!typingIndicator) {
+            typingIndicator = document.createElement('div');
+            typingIndicator.id = 'typingIndicator';
+            typingIndicator.className = 'typing-indicator';
+            messageArea.appendChild(typingIndicator);
+        }
+        
         typingIndicator.innerHTML = `<em class="typing-text">${text}</em>`;
         typingIndicator.style.display = 'block';
+        
+        // Ensure typing indicator is always at the bottom
+        ensureTypingIndicatorAtBottom();
         
         // Scroll to bottom to show typing indicator
         messageArea.scrollTop = messageArea.scrollHeight;
     } else {
-        typingIndicator.style.display = 'none';
+        if (typingIndicator) {
+            typingIndicator.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Ensure typing indicator is always the last element
+ */
+function ensureTypingIndicatorAtBottom() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator && typingIndicator.parentNode) {
+        // Remove and re-append to ensure it's last
+        typingIndicator.remove();
+        messageArea.appendChild(typingIndicator);
     }
 }
 
@@ -501,7 +518,12 @@ function addMessage(type, sender, content, messageId = null, status = null) {
     }
     messageDiv.appendChild(contentDiv);
     
+    // Add the message
     messageArea.appendChild(messageDiv);
+    
+    // Ensure typing indicator stays at bottom if it exists
+    ensureTypingIndicatorAtBottom();
+    
     messageArea.scrollTop = messageArea.scrollHeight;
     
     // Set up visibility observer for seen messages (for received messages)
@@ -634,6 +656,7 @@ function setupMessageVisibility(messageElement, messageId) {
     visibilityObserver.observe(messageElement);
 }
 
+/**
  * Update connection status indicator
  */
 function updateStatusIndicator(status) {

@@ -349,8 +349,9 @@ button {
     background: #f8f9fa;
     border-radius: 20px;
     border-left: 4px solid #667eea;
-    display: none;
+    display: block;
     animation: fadeIn 0.3s ease-in;
+    order: 9999; /* Ensure it appears last */
 }
 
 .typing-text {
@@ -459,4 +460,4 @@ button {
     .feature-grid {
         grid-template-columns: 1fr;
     }
-}
+}}
