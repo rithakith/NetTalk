@@ -80,7 +80,15 @@ public class WebSocketBridgeServer extends org.java_websocket.server.WebSocketSe
                         }
                         jsonMsg.addProperty("timestamp", msg.getTimestamp().toString());
                         
+                        // Add message tracking fields for CHAT messages
+                        if (msg.getType() == Message.MessageType.CHAT) {
+                            jsonMsg.addProperty("messageId", msg.getMessageId());
+                            jsonMsg.addProperty("status", msg.getStatus().toString());
+                            System.out.println("[WebSocket] Sending CHAT message with ID: " + msg.getMessageId() + ", Status: " + msg.getStatus());
+                        }
+                        
                         conn.send(jsonMsg.toString());
+                        System.out.println("[WebSocket] Sent message: " + jsonMsg.toString());
                     }
                 } catch (Exception e) {
                     if (!Thread.interrupted()) {
@@ -146,6 +154,18 @@ public class WebSocketBridgeServer extends org.java_websocket.server.WebSocketSe
                 case "TYPING_STOP":
                     msg = new Message(Message.MessageType.TYPING_STOP,
                         jsonMsg.get("sender").getAsString(), "");
+                    break;
+                    
+                case "MESSAGE_DELIVERED":
+                    msg = new Message(Message.MessageType.MESSAGE_DELIVERED,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("messageId").getAsString());
+                    break;
+                    
+                case "MESSAGE_SEEN":
+                    msg = new Message(Message.MessageType.MESSAGE_SEEN,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("messageId").getAsString());
                     break;
             }
             

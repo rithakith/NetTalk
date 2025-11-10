@@ -11,6 +11,10 @@ let typingUsers = new Set(); // Users currently typing
 let typingTimeout = null; // Timeout for stopping typing indicator
 let isTyping = false; // Whether current user is typing
 
+// Message tracking variables
+let messageMap = new Map(); // Map of messageId to message element
+let messageStatusMap = new Map(); // Map of messageId to status
+let visibilityObserver = null; // Intersection Observer for message visibility
 // Local Storage keys
 const STORAGE_KEYS = {
     MESSAGES: 'chatMessages',
@@ -270,7 +274,14 @@ function handleMessage(message) {
             break;
             
         case 'CHAT':
-            addMessage('CHAT', message.sender, message.content);
+            console.log('Received CHAT message:', message);
+            console.log('MessageId:', message.messageId, 'Status:', message.status, 'Sender:', message.sender, 'Current user:', username);
+            addMessage('CHAT', message.sender, message.content, message.messageId, message.status);
+            
+            // Send delivery confirmation if not from current user
+            if (message.sender !== username && message.messageId) {
+                sendMessageDelivered(message.messageId);
+            }
             break;
             
         case 'PRIVATE_MSG':
@@ -299,6 +310,15 @@ function handleMessage(message) {
                 removeTypingUser(message.sender);
             }
             break;
+            
+        case 'MESSAGE_SEEN':
+            // Handle message status update
+            try {
+                const statusData = JSON.parse(message.content);
+                updateMessageStatus(statusData.messageId, statusData.status);
+            } catch (e) {
+                console.error('Failed to parse message status:', e);
+            }
             break;
             
         case 'USER_LIST':
@@ -442,7 +462,7 @@ function updateTypingIndicator() {
 /**
  * Add message to chat area
  */
-function addMessage(type, sender, content) {
+function addMessage(type, sender, content, messageId = null, status = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message message-${type.toLowerCase()}`;
     
@@ -460,6 +480,21 @@ function addMessage(type, sender, content) {
     timeDiv.className = 'message-time';
     timeDiv.textContent = ` (${timestamp})`;
     
+    // Add message status indicators for own messages
+    if (type === 'CHAT' && sender === username && messageId) {
+        console.log('Adding status indicator for message:', messageId, 'status:', status);
+        const statusDiv = document.createElement('span');
+        statusDiv.className = 'message-status';
+        statusDiv.setAttribute('data-message-id', messageId);
+        updateStatusIcon(statusDiv, status || 'SENT');
+        timeDiv.appendChild(statusDiv);
+        
+        // Store message reference
+        messageMap.set(messageId, messageDiv);
+        messageStatusMap.set(messageId, status || 'SENT');
+        console.log('Status indicator added successfully');
+    }
+    
     if (type !== 'SYSTEM') {
         senderDiv.appendChild(timeDiv);
         messageDiv.appendChild(senderDiv);
@@ -469,6 +504,10 @@ function addMessage(type, sender, content) {
     messageArea.appendChild(messageDiv);
     messageArea.scrollTop = messageArea.scrollHeight;
     
+    // Set up visibility observer for seen messages (for received messages)
+    if (type === 'CHAT' && sender !== username && messageId) {
+        setupMessageVisibility(messageDiv, messageId);
+    }
     // Save message to local storage
     saveMessageToStorage({
         type: type,
@@ -495,6 +534,106 @@ function updateUserList(users) {
 }
 
 /**
+ * Update message status icon
+ */
+function updateStatusIcon(statusElement, status) {
+    statusElement.innerHTML = '';
+    
+    switch (status) {
+        case 'SENT':
+            // Single checkmark
+            statusElement.innerHTML = ' <span class="status-icon status-sent">✓</span>';
+            statusElement.title = 'Sent';
+            break;
+        case 'DELIVERED':
+            // Double checkmark (gray)
+            statusElement.innerHTML = ' <span class="status-icon status-delivered">✓✓</span>';
+            statusElement.title = 'Delivered';
+            break;
+        case 'SEEN':
+            // Double checkmark (blue)
+            statusElement.innerHTML = ' <span class="status-icon status-seen">✓✓</span>';
+            statusElement.title = 'Seen';
+            break;
+    }
+}
+
+/**
+ * Update message status
+ */
+function updateMessageStatus(messageId, status) {
+    const statusElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (statusElement) {
+        updateStatusIcon(statusElement, status);
+        messageStatusMap.set(messageId, status);
+        console.log(`Message ${messageId} status updated to ${status}`);
+    }
+}
+
+/**
+ * Send message delivery confirmation
+ */
+function sendMessageDelivered(messageId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({
+                type: 'MESSAGE_DELIVERED',
+                sender: username,
+                messageId: messageId
+            }));
+        } catch (error) {
+            console.error('Failed to send delivery confirmation:', error);
+        }
+    }
+}
+
+/**
+ * Send message seen confirmation
+ */
+function sendMessageSeen(messageId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({
+                type: 'MESSAGE_SEEN',
+                sender: username,
+                messageId: messageId
+            }));
+        } catch (error) {
+            console.error('Failed to send seen confirmation:', error);
+        }
+    }
+}
+
+/**
+ * Setup message visibility observer for "seen" functionality
+ */
+function setupMessageVisibility(messageElement, messageId) {
+    if (!visibilityObserver) {
+        visibilityObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const msgId = entry.target.getAttribute('data-visibility-id');
+                    if (msgId) {
+                        // Message is visible, mark as seen
+                        setTimeout(() => {
+                            sendMessageSeen(msgId);
+                        }, 1000); // Wait 1 second before marking as seen
+                        
+                        // Stop observing this message
+                        visibilityObserver.unobserve(entry.target);
+                    }
+                }
+            });
+        }, {
+            threshold: 0.5, // 50% of message must be visible
+            rootMargin: '0px 0px -50px 0px' // Account for bottom margin
+        });
+    }
+    
+    messageElement.setAttribute('data-visibility-id', messageId);
+    visibilityObserver.observe(messageElement);
+}
+
  * Update connection status indicator
  */
 function updateStatusIndicator(status) {
