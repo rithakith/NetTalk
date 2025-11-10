@@ -38,7 +38,10 @@
             <div class="chat-header">
                 <div>
                     <h2>Chat Room</h2>
-                    <p id="connectionStatus">Connected as <span id="currentUsername"></span></p>
+                    <p id="connectionStatus">
+                        <span class="status-indicator" id="statusIndicator">🟢</span>
+                        Connected as <span id="currentUsername"></span>
+                    </p>
                 </div>
                 <button id="disconnectBtn" class="btn-danger">Disconnect</button>
             </div>
@@ -54,6 +57,11 @@
                         <button class="btn-api" data-cmd="/joke">Random Joke</button>
                         <button class="btn-api" data-cmd="/quote">Quote</button>
                         <button class="btn-api" data-cmd="/weather London">Weather</button>
+                    </div>
+                    
+                    <h3>Chat History</h3>
+                    <div class="api-commands">
+                        <button class="btn-danger" onclick="clearChatHistory()" style="font-size: 0.85em;">Clear History</button>
                     </div>
                 </div>
                 
