@@ -481,7 +481,15 @@ function ensureTypingIndicatorAtBottom() {
  */
 function addMessage(type, sender, content, messageId = null, status = null) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${type.toLowerCase()}`;
+    
+    // Determine message alignment and styling based on sender and type
+    let messageClass = 'message ';
+    if (type === 'CHAT') {
+        messageClass += sender === username ? 'message-sent' : 'message-received';
+    } else {
+        messageClass += `message-${type.toLowerCase()}`;
+    }
+    messageDiv.className = messageClass;
     
     const senderDiv = document.createElement('div');
     senderDiv.className = 'message-sender';

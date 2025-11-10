@@ -215,17 +215,25 @@ button {
     flex: 1;
     overflow-y: auto;
     padding: 15px;
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     border-radius: 10px;
     margin-bottom: 15px;
     max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .message {
     margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 12px 15px;
+    border-radius: 18px;
     animation: fadeIn 0.3s;
+    max-width: 70%;
+    word-wrap: break-word;
+    position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 @keyframes fadeIn {
@@ -233,26 +241,71 @@ button {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.message-chat {
-    background: white;
-    border-left: 3px solid #667eea;
+/* Sent messages (right side) */
+.message-sent {
+    background: linear-gradient(135deg, #e8f0fe 0%, #f3e5f5 100%);
+    color: #4a4a4a;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    border-right: 3px solid #667eea;
 }
 
+.message-sent .message-sender {
+    color: #333;
+}
+
+.message-sent .message-time {
+    color: #666;
+}
+
+/* Received messages (left side) */
+.message-received {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+    color: #2d5a2d;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 8px rgba(45, 90, 45, 0.1);
+    border-left: 3px solid #4caf50;
+}
+
+.message-received .message-sender {
+    color: #2d5a2d;
+}
+
+.message-received .message-time {
+    color: #666;
+}
+
+/* System messages (center) */
 .message-system {
-    background: #fff3cd;
-    border-left: 3px solid #ffc107;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
     font-style: italic;
+    margin: 10px auto;
+    max-width: 80%;
+    text-align: center;
+    border-radius: 15px;
+    box-shadow: 0 2px 6px rgba(255, 193, 7, 0.2);
 }
 
+/* Private messages */
 .message-private {
-    background: #d4edda;
-    border-left: 3px solid #28a745;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    color: #4a148c;
+    border-left: 3px solid #9c27b0;
+    box-shadow: 0 2px 6px rgba(156, 39, 176, 0.2);
 }
 
+/* API messages */
 .message-api {
-    background: #d1ecf1;
-    border-left: 3px solid #17a2b8;
+    background: linear-gradient(135deg, #e0f2f1 0%, #e8f5e8 100%);
+    color: #00695c;
     white-space: pre-wrap;
+    border-left: 3px solid #26a69a;
+    margin: 0 auto;
+    max-width: 80%;
+    box-shadow: 0 2px 6px rgba(38, 166, 154, 0.2);
 }
 
 .message-sender {
@@ -295,63 +348,20 @@ button {
     color: #666;
 }
 
-.features {
-    background: white;
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
 
-.features h2 {
-    text-align: center;
-    color: #667eea;
-    margin-bottom: 30px;
-}
-
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-}
-
-.feature-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    transition: transform 0.3s;
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-}
-
-.feature-card h3 {
-    font-size: 1.5em;
-    margin-bottom: 10px;
-}
-
-.feature-card p {
-    margin-bottom: 8px;
-    line-height: 1.5;
-}
-
-.feature-card p:first-of-type {
-    font-weight: bold;
-    font-size: 1.1em;
-}
 
 /* Typing Indicator Styles */
 .typing-indicator {
-    padding: 10px 15px;
-    margin: 5px 0;
-    background: #f8f9fa;
-    border-radius: 20px;
+    padding: 12px 18px;
+    margin: 8px auto;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: 25px;
     border-left: 4px solid #667eea;
     display: block;
     animation: fadeIn 0.3s ease-in;
     order: 9999; /* Ensure it appears last */
+    max-width: 60%;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.1);
 }
 
 .typing-text {
@@ -455,9 +465,5 @@ button {
         border-bottom: 2px solid #eee;
         padding-right: 0;
         padding-bottom: 20px;
-    }
-    
-    .feature-grid {
-        grid-template-columns: 1fr;
     }
 }}
