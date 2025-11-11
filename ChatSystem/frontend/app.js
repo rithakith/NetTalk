@@ -68,6 +68,9 @@ messageForm.addEventListener('submit', (e) => {
     const message = messageInput.value.trim();
     if (!message) return;
     
+    // Show chat interface on first message
+    showChatInterface();
+    
     // Stop typing indicator when sending message
     stopTyping();
     
@@ -520,9 +523,26 @@ function ensureTypingIndicatorAtBottom() {
 }
 
 /**
+ * Show chat interface and hide welcome screen
+ */
+function showChatInterface() {
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const messageArea = document.getElementById('messageArea');
+    
+    if (welcomeScreen && messageArea) {
+        welcomeScreen.classList.add('hidden');
+        messageArea.style.display = 'flex';
+        messageArea.classList.add('active');
+    }
+}
+
+/**
  * Add message to chat area
  */
 function addMessage(type, sender, content, messageId = null, status = null, quizStyle = null) {
+    // Show chat interface when first message arrives
+    showChatInterface();
+    
     const messageDiv = document.createElement('div');
     
     // Determine message alignment and styling based on sender and type
@@ -603,6 +623,16 @@ function updateUserList(users) {
         if (user === username) {
             li.style.fontWeight = 'bold';
             li.style.color = '#667eea';
+        } else {
+            // Add click handler to start chatting with user
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', () => {
+                showChatInterface();
+                // Pre-fill message input with @username
+                messageInput.value = `@${user} `;
+                messageInput.focus();
+            });
+            li.title = `Click to send private message to ${user}`;
         }
         userList.appendChild(li);
     });
@@ -1138,6 +1168,9 @@ function showQuizNotification(quizId, quizName, admin, type = 'active') {
  */
 function joinQuiz(quizId) {
     if (connected && ws && ws.readyState === WebSocket.OPEN) {
+        // Show chat interface when joining a quiz
+        showChatInterface();
+        
         sendMessage(`/joinquiz ${quizId}`);
         
         // Remove notification after joining
