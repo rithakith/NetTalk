@@ -179,6 +179,13 @@ public class QuizManager {
         scheduler.schedule(() -> {
             quiz.setState(Quiz.QuizState.ACTIVE);
             quiz.setCurrentQuestionIndex(0);
+            
+            // Trigger quiz started event
+            if (eventListener != null) {
+                eventListener.onQuizStarted(quiz);
+            }
+            
+            // Start first question
             startNextQuestion(quiz);
         }, 5, TimeUnit.SECONDS);
         

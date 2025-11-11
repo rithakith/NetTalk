@@ -81,22 +81,34 @@ public class ChatServer {
                 Message startMsg = new Message(Message.MessageType.QUIZ_START, "Server",
                     "Quiz '" + quiz.getQuizName() + "' has started! Get ready!");
                 broadcastToParticipants(quiz, startMsg);
+                
+                // Small delay to ensure start message is processed first
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
             
             @Override
             public void onQuizQuestionChanged(Quiz quiz, QuizQuestion question) {
                 System.out.println("[QuizEvents] New question for quiz: " + quiz.getQuizId());
-                // Send current question to all participants
-                String questionMsg = "Question " + (quiz.getCurrentQuestionIndex() + 1) + ":\n" +
-                                   question.getQuestionText() + "\n";
-                for (int i = 0; i < question.getOptions().length; i++) {
-                    questionMsg += (i + 1) + ". " + question.getOptions()[i] + "\n";
+                // Send current question to all participants in format expected by frontend
+                // Format: "Question 1: What is...? Options: A) Option1, B) Option2, C) Option3, D) Option4"
+                String questionMsg = "Question " + (quiz.getCurrentQuestionIndex() + 1) + ": " +
+                                   question.getQuestionText() + "? Options: ";
+                
+                String[] options = question.getOptions();
+                char[] letters = {'A', 'B', 'C', 'D'};
+                for (int i = 0; i < options.length && i < 4; i++) {
+                    if (i > 0) questionMsg += ", ";
+                    questionMsg += letters[i] + ") " + options[i];
                 }
-                questionMsg += "Time limit: " + question.getTimeLimit() + " seconds\n";
-                questionMsg += "Use /answer " + quiz.getQuizId() + " <option_number> to submit your answer";
                 
                 Message qMsg = new Message(Message.MessageType.QUIZ_QUESTION, "Server", questionMsg);
                 broadcastToParticipants(quiz, qMsg);
+                
+                System.out.println("[QuizEvents] Question sent: " + questionMsg);
             }
             
             @Override
@@ -136,12 +148,14 @@ public class ChatServer {
      * Broadcast message to all quiz participants
      */
     private void broadcastToParticipants(Quiz quiz, Message message) {
-        for (String participantName : quiz.getParticipants().keySet()) {
-            ClientHandler handler = userManager.getUserHandler(participantName);
-            if (handler != null) {
-                handler.sendMessage(message);
-            }
-        }
+        System.out.println("[ChatServer] Broadcasting quiz message to participants: " + message.getType());
+        System.out.println("[ChatServer] Participants: " + quiz.getParticipants().keySet());
+        
+        // Broadcast to ALL users so WebSocket clients receive it
+        // The quiz participants will filter and handle it on the client side
+        broadcastMessage(message);
+        
+        System.out.println("[ChatServer] Quiz message broadcasted to all users");
     }
     
     /**
@@ -221,6 +235,10 @@ public class ChatServer {
      * Broadcast message to all connected clients
      */
     public void broadcastMessage(Message message) {
+        System.out.println("[ChatServer] Broadcasting message - Type: " + message.getType() + 
+                         ", Sender: " + message.getSender() + 
+                         ", Content: " + message.getContent());
+        
         // Add to chat history (Member 4's thread-safe operation)
         if (message.getType() == Message.MessageType.CHAT) {
             userManager.addToChatHistory(message);
@@ -230,7 +248,10 @@ public class ChatServer {
         }
         
         // Send to all clients and mark as delivered
+        int handlerCount = 0;
         for (ClientHandler handler : userManager.getAllHandlers()) {
+            handlerCount++;
+            System.out.println("[ChatServer] Sending to user: " + handler.getUsername() + " (handler #" + handlerCount + ")");
             handler.sendMessage(message);
             
             // Mark as delivered to each user (excluding sender)
@@ -240,7 +261,7 @@ public class ChatServer {
             }
         }
         
-        System.out.println("[ChatServer] Broadcasted: " + message.getSender() + ": " + message.getContent());
+        System.out.println("[ChatServer] Broadcast complete - Sent to " + handlerCount + " handlers");
     }
     
     /**

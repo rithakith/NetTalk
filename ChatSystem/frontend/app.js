@@ -18,8 +18,9 @@ let visibilityObserver = null; // Intersection Observer for message visibility
 
 // Quiz tracking variables
 let currentQuiz = null; // Currently active quiz
-let quizAnswers = new Map(); // Map of questionNumber to selectedOption
+let quizAnswers = new Map(); // Map of questionNumber to selectedOption (0-3)
 let quizQuestions = []; // Array of quiz questions
+let joinedQuizId = null; // ID of quiz user has joined
 
 // Local Storage keys
 const STORAGE_KEYS = {
@@ -171,6 +172,7 @@ function connectToServer(user, host, port) {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
+                console.log('[WebSocket] Received message:', message.type, message);
                 handleMessage(message);
             } catch (error) {
                 console.error('Error parsing message:', error);
@@ -374,12 +376,14 @@ function handleMessage(message) {
             break;
             
         case 'QUIZ_START':
+            console.log('[WebSocket] Received QUIZ_START message:', message.content);
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-start');
             // Parse and display quiz interface
             parseAndDisplayQuiz(message.content);
             break;
             
         case 'QUIZ_QUESTION':
+            console.log('[WebSocket] Received QUIZ_QUESTION message:', message.content);
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-question');
             // Add question to current quiz
             addQuestionToQuiz(message.content);
@@ -387,6 +391,8 @@ function handleMessage(message) {
             
         case 'QUIZ_RESULTS':
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-results');
+            // Display results in quiz container if still active
+            displayQuizResults(message.content);
             break;
             
         case 'QUIZ_ENDED':
@@ -1228,6 +1234,16 @@ function joinQuiz(quizId) {
         
         sendMessage(`/joinquiz ${quizId}`);
         
+        // Store joined quiz ID
+        joinedQuizId = quizId;
+        
+        // Get quiz info from activeQuizzes
+        const quiz = activeQuizzes.get(quizId) || quizInvitations.get(quizId);
+        const quizName = quiz ? quiz.name : 'Quiz';
+        
+        // Show waiting screen
+        displayWaitingScreen(quizName, quizId);
+        
         // Remove notification after joining
         const notification = document.getElementById(`quiz-notif-${quizId}`);
         if (notification) {
@@ -1239,7 +1255,7 @@ function joinQuiz(quizId) {
             }, 300);
         }
         
-        addMessage('SYSTEM', 'You', `Joined quiz ${quizId}`);
+        addMessage('SYSTEM', 'You', `Joining quiz ${quizName}...`);
     } else {
         alert('Not connected to server');
     }
@@ -1491,14 +1507,82 @@ connectForm.addEventListener('submit', (e) => {
 });
 
 /**
+ * Display waiting screen after joining quiz
+ */
+function displayWaitingScreen(quizName, quizId) {
+    const messageArea = document.getElementById('messageArea');
+    
+    // Create waiting container
+    const waitingContainer = document.createElement('div');
+    waitingContainer.id = 'activeQuizContainer';
+    waitingContainer.className = 'active-quiz-container waiting';
+    
+    waitingContainer.innerHTML = `
+        <div class="quiz-waiting-screen">
+            <div class="waiting-icon">⏳</div>
+            <h2>Joined: ${quizName}</h2>
+            <p class="waiting-message">Waiting for admin to start the quiz...</p>
+            <div class="waiting-info">
+                <p>📝 Quiz ID: <code>${quizId}</code></p>
+                <p>👥 You're in! The quiz will begin shortly.</p>
+            </div>
+            <button class="btn-cancel-quiz" onclick="leaveQuiz()">
+                <span>🚪</span> Leave Quiz
+            </button>
+        </div>
+    `;
+    
+    messageArea.innerHTML = '';
+    messageArea.appendChild(waitingContainer);
+}
+
+/**
+ * Leave quiz before it starts
+ */
+function leaveQuiz() {
+    if (confirm('Are you sure you want to leave this quiz?')) {
+        joinedQuizId = null;
+        currentQuiz = null;
+        backToChat();
+    }
+}
+
+/**
  * Parse quiz start message and display quiz interface
  */
 function parseAndDisplayQuiz(content) {
-    // Example format: "Quiz 'Quiz Name' has started! Questions: ..."
-    const match = content.match(/Quiz '(.+)' has started/);
+    console.log('[Quiz] parseAndDisplayQuiz called with content:', content);
+    console.log('[Quiz] Content type:', typeof content);
+    console.log('[Quiz] Content length:', content ? content.length : 'null/undefined');
+    
+    // Example format: "Quiz 'Quiz Name' has started! Get ready!"
+    const match = content.match(/Quiz '(.+?)' has started/);
+    
+    console.log('[Quiz] Regex match result:', match);
+    
     if (match) {
         const quizName = match[1];
+        
+        console.log('[Quiz] ✓ Successfully parsed quiz name:', quizName);
+        console.log('[Quiz] Current joinedQuizId:', joinedQuizId);
+        
+        // If we don't have a joinedQuizId, try to find it from activeQuizzes
+        if (!joinedQuizId) {
+            console.log('[Quiz] No joinedQuizId, searching in activeQuizzes...');
+            for (const [id, quiz] of activeQuizzes.entries()) {
+                if (quiz.name === quizName) {
+                    joinedQuizId = id;
+                    console.log('[Quiz] Found quiz ID from active quizzes:', joinedQuizId);
+                    break;
+                }
+            }
+            if (!joinedQuizId) {
+                console.error('[Quiz] ERROR: Could not find quiz ID for quiz:', quizName);
+            }
+        }
+        
         currentQuiz = {
+            id: joinedQuizId,
             name: quizName,
             questions: [],
             startTime: new Date()
@@ -1506,11 +1590,29 @@ function parseAndDisplayQuiz(content) {
         quizAnswers.clear();
         quizQuestions = [];
         
+        console.log('[Quiz] ✓ Quiz state initialized');
+        console.log('[Quiz] currentQuiz:', currentQuiz);
+        
         // Show chat interface
+        console.log('[Quiz] Calling showChatInterface()...');
         showChatInterface();
         
         // Display quiz header
+        console.log('[Quiz] Calling displayQuizInterface(' + quizName + ')...');
         displayQuizInterface(quizName);
+        
+        console.log('[Quiz] ✓ parseAndDisplayQuiz completed successfully');
+    } else {
+        console.error('[Quiz] ✗ FAILED to parse quiz start message!');
+        console.error('[Quiz] Message content:', content);
+        console.error('[Quiz] Expected format: "Quiz \'Name\' has started"');
+        console.error('[Quiz] Trying to extract quiz name anyway...');
+        
+        // Try alternative parsing
+        const altMatch = content.match(/Quiz ["'](.+?)["']/);
+        if (altMatch) {
+            console.warn('[Quiz] Found quiz name using alternative regex:', altMatch[1]);
+        }
     }
 }
 
@@ -1518,35 +1620,58 @@ function parseAndDisplayQuiz(content) {
  * Add a question to the current quiz
  */
 function addQuestionToQuiz(content) {
+    console.log('[Quiz] Received question:', content);
+    
     // Parse question format: "Question 1: What is...? Options: A) ..., B) ..., C) ..., D) ..."
     const questionMatch = content.match(/Question (\d+): (.+?)\? Options: (.+)/);
-    if (questionMatch && currentQuiz) {
-        const questionNum = parseInt(questionMatch[1]);
-        const questionText = questionMatch[2];
-        const optionsText = questionMatch[3];
-        
-        // Parse options
-        const options = [];
-        const optionMatches = optionsText.matchAll(/([A-D])\) ([^,]+)/g);
-        for (const match of optionMatches) {
-            options.push({
-                letter: match[1],
-                text: match[2].trim()
-            });
-        }
-        
-        const question = {
-            number: questionNum,
-            text: questionText,
-            options: options
-        };
-        
-        quizQuestions.push(question);
-        currentQuiz.questions.push(question);
-        
-        // Update quiz interface
-        updateQuizInterface();
+    
+    if (!questionMatch) {
+        console.error('[Quiz] Failed to parse question format:', content);
+        return;
     }
+    
+    if (!currentQuiz) {
+        console.error('[Quiz] No current quiz to add question to');
+        return;
+    }
+    
+    const questionNum = parseInt(questionMatch[1]);
+    const questionText = questionMatch[2];
+    const optionsText = questionMatch[3];
+    
+    console.log('[Quiz] Parsed - Number:', questionNum, 'Text:', questionText, 'Options:', optionsText);
+    
+    // Parse options (format: "A) option1, B) option2, C) option3, D) option4")
+    const options = [];
+    const optionMatches = optionsText.matchAll(/([A-D])\)\s*([^,]+)/g);
+    
+    for (const match of optionMatches) {
+        options.push({
+            letter: match[1],
+            text: match[2].trim()
+        });
+    }
+    
+    console.log('[Quiz] Parsed options:', options);
+    
+    if (options.length === 0) {
+        console.error('[Quiz] No options parsed from:', optionsText);
+        return;
+    }
+    
+    const question = {
+        number: questionNum,
+        text: questionText,
+        options: options
+    };
+    
+    quizQuestions.push(question);
+    currentQuiz.questions.push(question);
+    
+    console.log('[Quiz] Question added. Total questions:', quizQuestions.length);
+    
+    // Update quiz interface
+    updateQuizInterface();
 }
 
 /**
@@ -1554,6 +1679,35 @@ function addQuestionToQuiz(content) {
  */
 function displayQuizInterface(quizName) {
     const messageArea = document.getElementById('messageArea');
+    
+    console.log('[Quiz] displayQuizInterface called for:', quizName);
+    console.log('[Quiz] messageArea found:', !!messageArea);
+    console.log('[Quiz] messageArea display:', messageArea ? messageArea.style.display : 'N/A');
+    
+    if (!messageArea) {
+        console.error('[Quiz] messageArea not found in DOM!');
+        return;
+    }
+    
+    // Ensure message area is visible
+    messageArea.style.display = 'flex';
+    messageArea.classList.add('active');
+    
+    // Hide welcome screen if visible
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+        welcomeScreen.classList.add('hidden');
+    }
+    
+    // Remove any existing quiz container (including waiting screen)
+    const existingContainer = document.getElementById('activeQuizContainer');
+    if (existingContainer) {
+        console.log('[Quiz] Removing existing quiz container');
+        existingContainer.remove();
+    }
+    
+    console.log('[Quiz] Creating quiz container...');
     
     // Create quiz container
     const quizContainer = document.createElement('div');
@@ -1584,8 +1738,13 @@ function displayQuizInterface(quizName) {
         </div>
     `;
     
+    console.log('[Quiz] Clearing messageArea and appending quiz container...');
     messageArea.innerHTML = '';
     messageArea.appendChild(quizContainer);
+    
+    console.log('[Quiz] Quiz container appended to DOM');
+    console.log('[Quiz] messageArea children count:', messageArea.children.length);
+    console.log('[Quiz] Quiz container visible:', quizContainer.offsetHeight > 0);
 }
 
 /**
@@ -1593,18 +1752,36 @@ function displayQuizInterface(quizName) {
  */
 function updateQuizInterface() {
     const container = document.getElementById('quizQuestionsContainer');
-    if (!container || quizQuestions.length === 0) return;
+    
+    console.log('[Quiz] updateQuizInterface called');
+    console.log('[Quiz] Container found:', !!container);
+    console.log('[Quiz] Container display:', container ? getComputedStyle(container).display : 'N/A');
+    console.log('[Quiz] Container dimensions:', container ? `${container.offsetWidth}x${container.offsetHeight}` : 'N/A');
+    
+    if (!container) {
+        console.error('[Quiz] Quiz questions container not found');
+        return;
+    }
+    
+    if (quizQuestions.length === 0) {
+        console.log('[Quiz] No questions to display yet');
+        return;
+    }
+    
+    console.log('[Quiz] Updating interface with', quizQuestions.length, 'questions');
     
     container.innerHTML = '';
     
     quizQuestions.forEach((question, index) => {
+        console.log('[Quiz] Rendering question', question.number, ':', question.text);
+        
         const questionDiv = document.createElement('div');
         questionDiv.className = 'quiz-question-card';
         questionDiv.id = `question-${question.number}`;
         
         let optionsHTML = '';
         question.options.forEach(option => {
-            const isSelected = quizAnswers.get(question.number) === option.letter;
+            const isSelected = quizAnswers.get(question.number) === (option.letter.charCodeAt(0) - 65); // A=0, B=1, C=2, D=3
             optionsHTML += `
                 <label class="quiz-option ${isSelected ? 'selected' : ''}">
                     <input type="radio" 
@@ -1633,7 +1810,20 @@ function updateQuizInterface() {
         `;
         
         container.appendChild(questionDiv);
+        
+        console.log('[Quiz] Question div appended, height:', questionDiv.offsetHeight);
     });
+    
+    console.log('[Quiz] Questions rendered successfully');
+    console.log('[Quiz] Container height after render:', container.offsetHeight);
+    console.log('[Quiz] Container children count:', container.children.length);
+    
+    // Check parent containers
+    const quizContainer = document.getElementById('activeQuizContainer');
+    const messageArea = document.getElementById('messageArea');
+    console.log('[Quiz] Quiz container height:', quizContainer ? quizContainer.offsetHeight : 'not found');
+    console.log('[Quiz] Message area height:', messageArea ? messageArea.offsetHeight : 'not found');
+    console.log('[Quiz] Message area display:', messageArea ? getComputedStyle(messageArea).display : 'N/A');
     
     // Update submit button state
     updateSubmitButton();
@@ -1642,8 +1832,15 @@ function updateQuizInterface() {
 /**
  * Select an option for a question
  */
-function selectQuizOption(questionNumber, option) {
-    quizAnswers.set(questionNumber, option);
+function selectQuizOption(questionNumber, optionLetter) {
+    console.log('[Quiz] Selected option', optionLetter, 'for question', questionNumber);
+    
+    // Convert letter (A-D) to index (0-3)
+    const answerIndex = optionLetter.charCodeAt(0) - 'A'.charCodeAt(0);
+    quizAnswers.set(questionNumber, answerIndex);
+    
+    console.log('[Quiz] Stored answer index:', answerIndex, 'Total answers:', quizAnswers.size);
+    
     updateQuizInterface();
 }
 
@@ -1672,7 +1869,7 @@ function updateSubmitButton() {
  * Submit quiz answers
  */
 function submitQuiz() {
-    if (!currentQuiz || quizAnswers.size === 0) {
+    if (!currentQuiz || !currentQuiz.id || quizAnswers.size === 0) {
         alert('Please answer all questions before submitting.');
         return;
     }
@@ -1680,19 +1877,17 @@ function submitQuiz() {
     // Check if all questions are answered
     const allAnswered = quizQuestions.every(q => quizAnswers.has(q.number));
     if (!allAnswered) {
-        alert('Please answer all questions before submitting.');
+        const unanswered = quizQuestions.filter(q => !quizAnswers.has(q.number)).length;
+        alert(`Please answer all questions before submitting.\n${unanswered} question(s) remaining.`);
         return;
     }
     
-    // Build answer string for each question
-    const answers = [];
+    // Send answers one by one for each question
+    // Format: /answer <quiz_id> <answer_index>
     quizQuestions.forEach(question => {
-        const answer = quizAnswers.get(question.number);
-        answers.push(`/answer ${currentQuiz.name} ${question.number} ${answer}`);
-    });
-    
-    // Send all answers
-    answers.forEach(answerCmd => {
+        const answerIndex = quizAnswers.get(question.number);
+        const answerCmd = `/answer ${currentQuiz.id} ${answerIndex}`;
+        console.log(`Submitting answer for question ${question.number}: ${answerCmd}`);
         sendMessage(answerCmd);
     });
     
@@ -1704,7 +1899,12 @@ function submitQuiz() {
                 <div class="success-icon">✅</div>
                 <h2>Quiz Submitted!</h2>
                 <p>Your answers have been submitted successfully.</p>
-                <p>Total questions answered: ${quizAnswers.size}</p>
+                <p class="submit-details">
+                    <strong>Quiz:</strong> ${currentQuiz.name}<br>
+                    <strong>Total Questions:</strong> ${quizAnswers.size}<br>
+                    <strong>Time:</strong> ${new Date().toLocaleTimeString()}
+                </p>
+                <p class="waiting-results">⏳ Waiting for results...</p>
                 <button class="btn-back-to-chat" onclick="backToChat()">
                     <span>💬</span> Back to Chat
                 </button>
@@ -1712,12 +1912,8 @@ function submitQuiz() {
         `;
     }
     
-    // Clear quiz data
-    setTimeout(() => {
-        currentQuiz = null;
-        quizAnswers.clear();
-        quizQuestions = [];
-    }, 1000);
+    // Don't clear quiz data immediately - wait for results
+    console.log(`✅ Quiz submitted: ${quizAnswers.size} answers for quiz ${currentQuiz.id}`);
 }
 
 /**
@@ -1744,9 +1940,63 @@ function backToChat() {
         container.remove();
     }
     
+    // Clear quiz state
+    joinedQuizId = null;
+    currentQuiz = null;
+    quizAnswers.clear();
+    quizQuestions = [];
+    
     // Restore message area
     messageArea.innerHTML = '';
     loadMessagesFromStorage();
+}
+
+/**
+ * Display quiz results
+ */
+function displayQuizResults(resultsMessage) {
+    const container = document.getElementById('activeQuizContainer');
+    if (!container) return;
+    
+    // Parse results from message
+    // Format: "Quiz Results for 'QuizName': \n username - Score: X/Y - Rank: #Z"
+    const lines = resultsMessage.split('\n');
+    let resultsHTML = '<div class="quiz-results-list">';
+    
+    lines.forEach((line, index) => {
+        if (line.includes('Score:')) {
+            const isCurrentUser = line.includes(username);
+            const rankClass = index === 1 ? 'rank-gold' : index === 2 ? 'rank-silver' : index === 3 ? 'rank-bronze' : '';
+            resultsHTML += `
+                <div class="result-item ${isCurrentUser ? 'current-user' : ''} ${rankClass}">
+                    <span class="result-rank">#${index}</span>
+                    <span class="result-content">${line}</span>
+                    ${isCurrentUser ? '<span class="you-badge">You</span>' : ''}
+                </div>
+            `;
+        }
+    });
+    
+    resultsHTML += '</div>';
+    
+    container.innerHTML = `
+        <div class="quiz-results">
+            <div class="results-icon">🏆</div>
+            <h2>Quiz Results</h2>
+            ${resultsHTML}
+            <button class="btn-back-to-chat" onclick="backToChat()">
+                <span>💬</span> Back to Chat
+            </button>
+        </div>
+    `;
+    
+    // Clear quiz data
+    setTimeout(() => {
+        joinedQuizId = null;
+        currentQuiz = null;
+        quizAnswers.clear();
+        quizQuestions = [];
+    }, 1000);
 }
 
 // Initialize - Load quizzes from storage on page load
@@ -1754,3 +2004,57 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log('Chat client loaded');
     loadQuizzesFromStorage();
 });
+
+/**
+ * Debug function - Check quiz display state
+ * Call this from console: checkQuizDisplay()
+ */
+window.checkQuizDisplay = function() {
+    console.log('=== QUIZ DISPLAY DEBUG ===');
+    console.log('Current quiz:', currentQuiz);
+    console.log('Joined quiz ID:', joinedQuizId);
+    console.log('Quiz questions count:', quizQuestions.length);
+    console.log('Quiz questions:', quizQuestions);
+    
+    const messageArea = document.getElementById('messageArea');
+    const quizContainer = document.getElementById('activeQuizContainer');
+    const questionsContainer = document.getElementById('quizQuestionsContainer');
+    
+    console.log('Message area:', messageArea);
+    console.log('  - display:', messageArea ? getComputedStyle(messageArea).display : 'N/A');
+    console.log('  - dimensions:', messageArea ? `${messageArea.offsetWidth}x${messageArea.offsetHeight}` : 'N/A');
+    console.log('  - children:', messageArea ? messageArea.children.length : 'N/A');
+    
+    console.log('Quiz container:', quizContainer);
+    console.log('  - display:', quizContainer ? getComputedStyle(quizContainer).display : 'N/A');
+    console.log('  - dimensions:', quizContainer ? `${quizContainer.offsetWidth}x${quizContainer.offsetHeight}` : 'N/A');
+    console.log('  - visibility:', quizContainer ? getComputedStyle(quizContainer).visibility : 'N/A');
+    console.log('  - children:', quizContainer ? quizContainer.children.length : 'N/A');
+    console.log('  - className:', quizContainer ? quizContainer.className : 'N/A');
+    
+    console.log('Questions container:', questionsContainer);
+    console.log('  - display:', questionsContainer ? getComputedStyle(questionsContainer).display : 'N/A');
+    console.log('  - dimensions:', questionsContainer ? `${questionsContainer.offsetWidth}x${questionsContainer.offsetHeight}` : 'N/A');
+    console.log('  - children:', questionsContainer ? questionsContainer.children.length : 'N/A');
+    
+    if (questionsContainer && questionsContainer.children.length > 0) {
+        console.log('First question element:', questionsContainer.children[0]);
+        console.log('  - display:', getComputedStyle(questionsContainer.children[0]).display);
+        console.log('  - dimensions:', `${questionsContainer.children[0].offsetWidth}x${questionsContainer.children[0].offsetHeight}`);
+    }
+    
+    console.log('=========================');
+};
+
+/**
+ * Debug function - Manually trigger quiz display
+ * Call this from console: testQuizDisplay('TestQuiz')
+ */
+window.testQuizDisplay = function(quizName) {
+    console.log('=== MANUAL QUIZ DISPLAY TEST ===');
+    console.log('Calling displayQuizInterface with name:', quizName || 'TestQuiz');
+    displayQuizInterface(quizName || 'TestQuiz');
+    console.log('Display function completed');
+    console.log('Check if quiz interface appeared above');
+    console.log('================================');
+};

@@ -1277,6 +1277,9 @@
             let html = '';
             quizzes.forEach(quiz => {
                 const statusClass = `status-${quiz.status.toLowerCase()}`;
+                const canStart = quiz.status === 'CREATED' || quiz.status === 'READY';
+                const canEnd = quiz.status === 'ACTIVE';
+                
                 html += `
                     <div class="quiz-item">
                         <div class="quiz-info">
@@ -1285,6 +1288,8 @@
                         </div>
                         <div class="quiz-actions">
                             <span class="status-indicator ${statusClass}">${quiz.status}</span>
+                            ${canStart ? `<button onclick="startQuizById('${quiz.id}')" class="btn-success" style="font-size: 0.8em; padding: 5px 10px;">🚀 Start</button>` : ''}
+                            ${canEnd ? `<button onclick="endQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">🛑 End</button>` : ''}
                             <button onclick="selectQuizForEditing('${quiz.id}')" class="btn-admin" style="font-size: 0.8em; padding: 5px 10px;">Edit</button>
                             <button onclick="deleteQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">Delete</button>
                         </div>
@@ -1647,25 +1652,46 @@
          * Start the selected quiz
          */
         function startQuiz() {
+            console.log('[DEBUG] startQuiz() called');
+            console.log('[DEBUG] currentQuizId:', currentQuizId);
+            console.log('[DEBUG] adminConnected:', adminConnected);
+            
             if (!currentQuizId) {
                 alert('Please create a quiz first!');
+                console.error('[DEBUG] No currentQuizId - aborting');
                 return;
             }
             
             const quiz = quizzes.get(currentQuizId);
+            console.log('[DEBUG] quiz from storage:', quiz);
+            
             if (!quiz) {
                 alert('Quiz not found!');
+                console.error('[DEBUG] Quiz not found in storage - aborting');
                 return;
             }
 
-            const command = `/startquiz ${currentQuizId}`;
-            ws.send(JSON.stringify({
-                type: 'COMMAND',
-                sender: adminUsername,
-                content: command
-            }));
+            // Confirmation dialog
+            console.log('[DEBUG] Showing confirmation dialog');
+            const confirmStart = confirm(`Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`);
+            console.log('[DEBUG] Confirmation result:', confirmStart);
+            
+            if (!confirmStart) {
+                logToConsole('⚠️ Quiz start cancelled by admin');
+                console.log('[DEBUG] User cancelled - aborting');
+                return;
+            }
 
-            logToConsole(`🚀 Starting quiz: ${quiz.name}`);
+            logToConsole(`🚀 Sending start command for quiz: ${quiz.name} (ID: ${currentQuizId})`);
+            console.log('[DEBUG] About to send WebSocket message');
+
+            const command = `/startquiz ${currentQuizId}`;
+            
+            // Use sendCommand for proper logging
+            sendCommand(command);
+
+            logToConsole(`✅ Start command sent to server: ${command}`);
+            logToConsole(`⏳ Quiz will start in 5 seconds...`);
 
             // Update quiz status in storage
             quiz.status = 'ACTIVE';
@@ -1676,13 +1702,21 @@
             // Update UI
             const controlQuizStatus = document.getElementById('controlQuizStatus');
             if (controlQuizStatus) {
-                controlQuizStatus.textContent = 'ACTIVE';
+                controlQuizStatus.textContent = 'STARTING...';
                 controlQuizStatus.className = 'status-badge status-active';
+                
+                // Update to ACTIVE after countdown
+                setTimeout(() => {
+                    controlQuizStatus.textContent = 'ACTIVE';
+                }, 5000);
             }
             
             const startBtn = document.getElementById('startBtn');
             const endBtn = document.getElementById('endBtn');
-            if (startBtn) startBtn.disabled = true;
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.textContent = '✓ Quiz Started';
+            }
             if (endBtn) endBtn.disabled = false;
         }
 
@@ -1727,6 +1761,71 @@
             const endBtn = document.getElementById('endBtn');
             if (startBtn) startBtn.disabled = false;
             if (endBtn) endBtn.disabled = true;
+        }
+
+        /**
+         * Start quiz by ID (from Manage Quizzes tab)
+         */
+        function startQuizById(quizId) {
+            const quiz = quizzes.get(quizId);
+            if (!quiz) {
+                alert('Quiz not found!');
+                return;
+            }
+
+            // Confirmation dialog
+            const confirmStart = confirm(`Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`);
+            if (!confirmStart) {
+                logToConsole('⚠️ Quiz start cancelled by admin');
+                return;
+            }
+
+            logToConsole(`🚀 Starting quiz: ${quiz.name} (ID: ${quizId})`);
+
+            const command = `/startquiz ${quizId}`;
+            
+            // Use sendCommand for proper logging
+            sendCommand(command);
+
+            logToConsole(`✅ Start command sent to server: ${command}`);
+            logToConsole(`⏳ Quiz will start in 5 seconds...`);
+
+            // Update quiz status in storage
+            quiz.status = 'ACTIVE';
+            quizzes.set(quizId, quiz);
+            saveQuizzesToStorage();
+            updateQuizLists();
+        }
+
+        /**
+         * End quiz by ID (from Manage Quizzes tab)
+         */
+        function endQuizById(quizId) {
+            const quiz = quizzes.get(quizId);
+            if (!quiz) {
+                alert('Quiz not found!');
+                return;
+            }
+
+            const confirmEnd = confirm(`End quiz "${quiz.name}"?\n\nThis will stop the quiz and show results to participants.`);
+            if (!confirmEnd) {
+                return;
+            }
+
+            const command = `/endquiz ${quizId}`;
+            ws.send(JSON.stringify({
+                type: 'COMMAND',
+                sender: adminUsername,
+                content: command
+            }));
+
+            logToConsole(`⏹️ Ending quiz: ${quiz.name}`);
+
+            // Update quiz status
+            quiz.status = 'ENDED';
+            quizzes.set(quizId, quiz);
+            saveQuizzesToStorage();
+            updateQuizLists();
         }
 
         /**

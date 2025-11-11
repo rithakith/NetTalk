@@ -1459,7 +1459,9 @@ button {
     background: white;
     border-radius: 12px;
     padding: 0;
-    margin: 20px;
+    margin: 0;
+    width: 100%;
+    min-height: 400px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     overflow: hidden;
     animation: slideInQuiz 0.5s ease-out;
@@ -1791,4 +1793,198 @@ button {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
+
+/* Waiting Screen Styles */
+.quiz-waiting-screen {
+    text-align: center;
+    padding: 60px 40px;
+    animation: fadeIn 0.5s;
+}
+
+.waiting-icon {
+    font-size: 5em;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+.quiz-waiting-screen h2 {
+    color: #667eea;
+    font-size: 2em;
+    margin-bottom: 15px;
+}
+
+.waiting-message {
+    color: #7f8c8d;
+    font-size: 1.2em;
+    margin: 20px 0;
+    font-weight: 500;
+}
+
+.waiting-info {
+    background: #f0f4ff;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 30px auto;
+    max-width: 400px;
+    border: 2px dashed #667eea;
+}
+
+.waiting-info p {
+    margin: 10px 0;
+    color: #2c3e50;
+    font-size: 0.95em;
+}
+
+.waiting-info code {
+    background: white;
+    padding: 4px 12px;
+    border-radius: 5px;
+    color: #667eea;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.submit-details {
+    background: #f0f4ff;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 400px;
+    border-left: 4px solid #27ae60;
+    text-align: left;
+    line-height: 1.8;
+}
+
+.submit-details strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.waiting-results {
+    color: #f39c12;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 25px 0;
+    animation: pulse 2s infinite;
+}
+
+/* Quiz Results Styles */
+.quiz-results {
+    text-align: center;
+    padding: 40px;
+    animation: fadeIn 0.5s;
+}
+
+.results-icon {
+    font-size: 5em;
+    margin-bottom: 20px;
+    animation: successBounce 0.6s ease-out;
+}
+
+.quiz-results h2 {
+    color: #667eea;
+    font-size: 2.2em;
+    margin-bottom: 30px;
+}
+
+.quiz-results-list {
+    max-width: 600px;
+    margin: 0 auto 30px;
+}
+
+.result-item {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s;
+    animation: slideInLeft 0.5s ease-out;
+}
+
+.result-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+}
+
+.result-item.current-user {
+    background: linear-gradient(135deg, #fff3cd 0%, #fffaeb 100%);
+    border-color: #f39c12;
+    border-width: 3px;
+}
+
+.result-rank {
+    background: #e0e0e0;
+    color: #666;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2em;
+    flex-shrink: 0;
+}
+
+.rank-gold .result-rank {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #856404;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+}
+
+.rank-silver .result-rank {
+    background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+    color: #666;
+    box-shadow: 0 4px 15px rgba(192, 192, 192, 0.4);
+}
+
+.rank-bronze .result-rank {
+    background: linear-gradient(135deg, #cd7f32 0%, #e09957 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(205, 127, 50, 0.4);
+}
+
+.result-content {
+    flex: 1;
+    text-align: left;
+    font-size: 1.05em;
+    color: #2c3e50;
+}
+
+.you-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+
 }
