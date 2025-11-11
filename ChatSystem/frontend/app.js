@@ -307,6 +307,8 @@ function handleMessage(message) {
             
         case 'SYSTEM':
             addMessage('SYSTEM', 'Server', message.content);
+            // Check for quiz-related system messages
+            handleQuizMessage(message);
             break;
             
         case 'TYPING_START':
@@ -344,8 +346,13 @@ function handleMessage(message) {
             
         // Quiz message types
         case 'QUIZ_CREATED':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-invitation');
+            handleQuizMessage(message);
+            break;
+            
         case 'QUIZ_INVITATION':
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-invitation');
+            handleQuizMessage(message);
             break;
             
         case 'QUIZ_START':
@@ -1024,4 +1031,310 @@ function showQuizQuestion(questionContent) {
             icon: '/favicon.ico'
         });
     }
-};
+}
+
+// ==================== QUIZ MANAGEMENT ====================
+
+let activeQuizzes = new Map(); // Store active quizzes
+let quizInvitations = new Map(); // Store quiz invitations
+
+/**
+ * Toggle quiz notification panel visibility
+ */
+function toggleQuizPanel() {
+    const panel = document.getElementById('quizNotificationPanel');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+/**
+ * Refresh quiz list from server
+ */
+function refreshQuizList() {
+    if (connected && ws && ws.readyState === WebSocket.OPEN) {
+        sendMessage('/quizzes');
+        console.log('Requested quiz list from server');
+    } else {
+        alert('Not connected to server');
+    }
+}
+
+/**
+ * Handle quiz invitation
+ */
+function handleQuizInvitation(quizId, quizName, inviter) {
+    // Store invitation
+    quizInvitations.set(quizId, {
+        id: quizId,
+        name: quizName,
+        inviter: inviter,
+        timestamp: Date.now()
+    });
+    
+    // Show notification panel
+    showQuizNotification(quizId, quizName, inviter, 'invitation');
+    
+    // Add to available quizzes
+    updateAvailableQuizzes();
+}
+
+/**
+ * Show quiz notification
+ */
+function showQuizNotification(quizId, quizName, admin, type = 'active') {
+    const notificationPanel = document.getElementById('quizNotificationPanel');
+    const notificationList = document.getElementById('quizNotificationList');
+    
+    // Show panel
+    notificationPanel.style.display = 'block';
+    
+    // Check if notification already exists
+    let existingNotification = document.getElementById(`quiz-notif-${quizId}`);
+    if (existingNotification) {
+        return; // Don't add duplicate
+    }
+    
+    // Create notification item
+    const notificationItem = document.createElement('div');
+    notificationItem.id = `quiz-notif-${quizId}`;
+    notificationItem.className = `quiz-notification-item ${type}`;
+    
+    const badgeText = type === 'invitation' ? 'INVITATION' : 
+                      type === 'running' ? 'IN PROGRESS' : 'AVAILABLE';
+    const badgeClass = type === 'invitation' ? 'invitation' : 
+                       type === 'running' ? 'running' : 'active';
+    
+    notificationItem.innerHTML = `
+        <div class="quiz-item-header">
+            <div class="quiz-item-title">🎯 ${quizName}</div>
+            <span class="quiz-item-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="quiz-item-info">
+            ${type === 'invitation' ? `Invited by: ${admin}` : `Created by: ${admin}`}
+            <br>Quiz ID: ${quizId}
+        </div>
+        <div class="quiz-item-actions">
+            <button class="btn-join-quiz" onclick="joinQuiz('${quizId}')">
+                Join Quiz
+            </button>
+            <button class="btn-view-quiz" onclick="viewQuizDetails('${quizId}')">
+                View Details
+            </button>
+        </div>
+    `;
+    
+    if (type === 'invitation') {
+        notificationItem.classList.add('quiz-invitation-pulse');
+    }
+    
+    notificationList.appendChild(notificationItem);
+}
+
+/**
+ * Join a quiz
+ */
+function joinQuiz(quizId) {
+    if (connected && ws && ws.readyState === WebSocket.OPEN) {
+        sendMessage(`/joinquiz ${quizId}`);
+        
+        // Remove notification after joining
+        const notification = document.getElementById(`quiz-notif-${quizId}`);
+        if (notification) {
+            notification.style.animation = 'fadeOut 0.3s';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+        
+        addMessage('SYSTEM', 'You', `Joined quiz ${quizId}`);
+    } else {
+        alert('Not connected to server');
+    }
+}
+
+/**
+ * View quiz details
+ */
+function viewQuizDetails(quizId) {
+    // Request quiz details from server
+    if (connected && ws && ws.readyState === WebSocket.OPEN) {
+        sendMessage(`/quizinfo ${quizId}`);
+    } else {
+        alert('Not connected to server');
+    }
+}
+
+/**
+ * Update available quizzes list in sidebar
+ */
+function updateAvailableQuizzes() {
+    const container = document.getElementById('availableQuizzes');
+    
+    if (activeQuizzes.size === 0 && quizInvitations.size === 0) {
+        container.innerHTML = '<p class="quiz-placeholder">No active quizzes</p>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    // Add invitations first
+    quizInvitations.forEach((quiz, quizId) => {
+        const quizItem = createQuizListItem(quiz, 'invitation');
+        container.appendChild(quizItem);
+    });
+    
+    // Add active quizzes
+    activeQuizzes.forEach((quiz, quizId) => {
+        // Don't duplicate if already in invitations
+        if (!quizInvitations.has(quizId)) {
+            const quizItem = createQuizListItem(quiz, quiz.status || 'created');
+            container.appendChild(quizItem);
+        }
+    });
+}
+
+/**
+ * Create quiz list item element
+ */
+function createQuizListItem(quiz, status) {
+    const item = document.createElement('div');
+    item.className = 'quiz-list-item';
+    item.id = `quiz-list-${quiz.id}`;
+    
+    const statusText = status === 'invitation' ? 'INVITED' :
+                       status === 'running' ? 'IN PROGRESS' :
+                       status === 'completed' ? 'COMPLETED' : 'AVAILABLE';
+    const statusClass = status === 'invitation' ? 'created' :
+                        status === 'running' ? 'running' : 
+                        status === 'completed' ? 'completed' : 'created';
+    
+    item.innerHTML = `
+        <div class="quiz-list-item-header">
+            <div class="quiz-list-item-title">${quiz.name}</div>
+            <span class="quiz-list-item-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="quiz-list-item-info">
+            ${quiz.inviter ? `Invited by: ${quiz.inviter}` : 
+              quiz.admin ? `By: ${quiz.admin}` : `Quiz ID: ${quiz.id}`}
+            ${quiz.questions ? ` • ${quiz.questions} questions` : ''}
+        </div>
+        <div class="quiz-list-item-actions">
+            <button class="btn-quiz-action btn-quiz-join" onclick="joinQuiz('${quiz.id}')">
+                Join
+            </button>
+            <button class="btn-quiz-action btn-quiz-view" onclick="viewQuizDetails('${quiz.id}')">
+                Details
+            </button>
+        </div>
+    `;
+    
+    return item;
+}
+
+/**
+ * Parse quiz list from server response
+ */
+function parseQuizList(content) {
+    // Clear existing quizzes
+    activeQuizzes.clear();
+    
+    // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
+    const lines = content.split('\n');
+    for (let line of lines) {
+        const match = line.match(/- (.+) \(ID: ([a-zA-Z0-9]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/);
+        if (match) {
+            const quizName = match[1];
+            const quizId = match[2];
+            const adminName = match[3];
+            const state = match[4].toLowerCase();
+            const questionCount = parseInt(match[5]);
+            
+            activeQuizzes.set(quizId, {
+                id: quizId,
+                name: quizName,
+                admin: adminName,
+                status: state,
+                questions: questionCount
+            });
+        }
+    }
+    
+    updateAvailableQuizzes();
+    console.log(`Loaded ${activeQuizzes.size} active quizzes`);
+}
+
+/**
+ * Enhanced message handler for quiz-related messages
+ */
+function handleQuizMessage(message) {
+    const content = message.content;
+    
+    // Check for quiz creation
+    if (content.includes('Quiz') && content.includes('created successfully')) {
+        const match = content.match(/Quiz '(.+)' created successfully! Quiz ID: ([a-zA-Z0-9]+)/);
+        if (match) {
+            const quizName = match[1];
+            const quizId = match[2];
+            
+            activeQuizzes.set(quizId, {
+                id: quizId,
+                name: quizName,
+                admin: message.sender,
+                status: 'created',
+                questions: 0
+            });
+            
+            updateAvailableQuizzes();
+        }
+    }
+    
+    // Check for quiz invitation
+    else if (content.includes('invited') && content.includes('quiz')) {
+        const match = content.match(/invited to quiz '(.+)' \(ID: ([a-zA-Z0-9]+)\)/);
+        if (match) {
+            const quizName = match[1];
+            const quizId = match[2];
+            
+            handleQuizInvitation(quizId, quizName, message.sender);
+        }
+    }
+    
+    // Check for quiz list response
+    else if (content.includes('Active Quizzes:')) {
+        parseQuizList(content);
+    }
+    
+    // Check for quiz started
+    else if (content.includes('Quiz') && content.includes('has started')) {
+        const match = content.match(/Quiz '(.+)' \(ID: ([a-zA-Z0-9]+)\) has started/);
+        if (match) {
+            const quizName = match[1];
+            const quizId = match[2];
+            
+            // Update quiz status
+            const quiz = activeQuizzes.get(quizId);
+            if (quiz) {
+                quiz.status = 'running';
+                updateAvailableQuizzes();
+                showQuizNotification(quizId, quizName, quiz.admin, 'running');
+            }
+        }
+    }
+}
+
+// Auto-refresh quiz list on connection
+const originalConnectFormSubmit = connectForm.onsubmit;
+connectForm.addEventListener('submit', (e) => {
+    // After connection is established, refresh quiz list
+    setTimeout(() => {
+        if (connected) {
+            refreshQuizList();
+        }
+    }, 2000);
+});
+
