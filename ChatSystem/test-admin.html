@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Test</title>
+</head>
+<body>
+    <h2>Quick Admin Test</h2>
+    <div>
+        <h3>1. Create Quiz</h3>
+        <input type="text" id="quizTitle" placeholder="Quiz Title" value="Test Quiz 1">
+        <input type="text" id="quizDescription" placeholder="Description" value="This is a test quiz">
+        <button onclick="createQuiz()">Create Quiz</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>2. Quiz Dropdown Test</h3>
+        <select id="quizDropdown">
+            <option value="">Select a quiz...</option>
+        </select>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>Messages</h3>
+        <div id="messages" style="border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px;">
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        
+        function connect() {
+            socket = new WebSocket('ws://localhost:8890');
+            
+            socket.onopen = function(event) {
+                addMessage('Connected to admin server');
+                // Send connect message
+                const connectMsg = {
+                    type: 'CONNECT',
+                    username: 'admin',
+                    content: ''
+                };
+                socket.send(JSON.stringify(connectMsg));
+            };
+            
+            socket.onmessage = function(event) {
+                addMessage('Received: ' + event.data);
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.content && data.content.includes('Quiz created:')) {
+                        // Extract quiz ID and add to dropdown
+                        const match = data.content.match(/Quiz created: (\d+)/);
+                        if (match) {
+                            const quizId = match[1];
+                            const option = document.createElement('option');
+                            option.value = quizId;
+                            option.textContent = 'Quiz ' + quizId;
+                            document.getElementById('quizDropdown').appendChild(option);
+                            addMessage('Added Quiz ' + quizId + ' to dropdown');
+                        }
+                    }
+                } catch (e) {
+                    // Not JSON, ignore
+                }
+            };
+            
+            socket.onerror = function(error) {
+                addMessage('Error: ' + error);
+            };
+            
+            socket.onclose = function(event) {
+                addMessage('Connection closed');
+            };
+        }
+        
+        function createQuiz() {
+            const title = document.getElementById('quizTitle').value;
+            const description = document.getElementById('quizDescription').value;
+            
+            const message = {
+                type: 'CHAT',
+                username: 'admin',
+                content: '/create_quiz "' + title + '" "' + description + '"'
+            };
+            
+            socket.send(JSON.stringify(message));
+            addMessage('Sent: ' + message.content);
+        }
+        
+        function addMessage(msg) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += msg + '<br>';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Connect when page loads
+        window.onload = connect;
+    </script>
+</body>
+</html>

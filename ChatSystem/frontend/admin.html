@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetTalk Quiz Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional admin-specific styles */
+        .admin-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid #667eea;
+        }
+        
+        .admin-section {
+            background: #f8f9ff;
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .admin-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-full {
+            grid-column: 1 / -1;
+        }
+        
+        .btn-admin {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        
+        .btn-admin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+        
+        .quiz-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .quiz-item {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quiz-info {
+            flex-grow: 1;
+        }
+        
+        .quiz-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .status-indicator {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .status-created { background: #ffc107; color: #856404; }
+        .status-ready { background: #17a2b8; color: #0c5460; }
+        .status-active { background: #28a745; color: #155724; }
+        .status-completed { background: #6c757d; color: #383d41; }
+        
+        .textarea-large {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        #adminConsole {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 NetTalk Quiz Admin Panel</h1>
+            <p>Create and manage interactive quiz sessions</p>
+        </header>
+        
+        <!-- Connection Panel -->
+        <div id="connectionPanel" class="panel admin-panel">
+            <h2>👑 Admin Connection</h2>
+            <form id="adminConnectForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="adminUsername">Admin Username:</label>
+                        <input type="text" id="adminUsername" required placeholder="QuizMaster" value="Admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="serverHost">Server:</label>
+                        <input type="text" id="serverHost" value="localhost" placeholder="Server address">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="serverPort">WebSocket Port:</label>
+                        <input type="number" id="serverPort" value="8889" placeholder="8889">
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn-admin">Connect as Admin</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="panel" style="display: none;">
+            <div class="chat-header">
+                <div>
+                    <h2>👑 Quiz Administration</h2>
+                    <p id="connectionStatus">
+                        <span class="status-indicator" id="statusIndicator">🟢</span>
+                        Connected as <span id="currentAdminUsername"></span>
+                    </p>
+                </div>
+                <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Quiz Creation Section -->
+                <div class="admin-section">
+                    <h3>📝 Create New Quiz</h3>
+                    <div class="form-group">
+                        <label for="quizName">Quiz Name:</label>
+                        <input type="text" id="quizName" placeholder="General Knowledge Quiz">
+                    </div>
+                    <button onclick="createQuiz()" class="btn-admin">Create Quiz</button>
+                </div>
+                
+                <!-- Question Management -->
+                <div class="admin-section">
+                    <h3>❓ Add Question</h3>
+                    <div class="form-group">
+                        <label for="selectedQuiz">Quiz ID:</label>
+                        <select id="selectedQuiz">
+                            <option value="">Select a quiz...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="questionText">Question:</label>
+                        <textarea id="questionText" placeholder="What is the capital of France?" class="textarea-large"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="option1">Option 1:</label>
+                            <input type="text" id="option1" placeholder="London">
+                        </div>
+                        <div class="form-group">
+                            <label for="option2">Option 2:</label>
+                            <input type="text" id="option2" placeholder="Paris">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="option3">Option 3:</label>
+                            <input type="text" id="option3" placeholder="Berlin">
+                        </div>
+                        <div class="form-group">
+                            <label for="option4">Option 4:</label>
+                            <input type="text" id="option4" placeholder="Rome">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="correctAnswer">Correct Answer (1-4):</label>
+                            <select id="correctAnswer">
+                                <option value="0">Option 1</option>
+                                <option value="1">Option 2</option>
+                                <option value="2">Option 3</option>
+                                <option value="3">Option 4</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeLimit">Time Limit (seconds):</label>
+                            <input type="number" id="timeLimit" value="30" min="10" max="300">
+                        </div>
+                    </div>
+                    <button onclick="addQuestion()" class="btn-admin">Add Question</button>
+                </div>
+                
+                <!-- Participant Management -->
+                <div class="admin-section">
+                    <h3>👥 Invite Participants</h3>
+                    <div class="form-group">
+                        <label for="inviteQuizId">Quiz ID:</label>
+                        <select id="inviteQuizId">
+                            <option value="">Select a quiz...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="participants">Participants (comma-separated):</label>
+                        <textarea id="participants" placeholder="Alice,Bob,Charlie,Diana"></textarea>
+                    </div>
+                    <button onclick="inviteParticipants()" class="btn-admin">Send Invitations</button>
+                </div>
+                
+                <!-- Quiz Control -->
+                <div class="admin-section">
+                    <h3>🚀 Quiz Control</h3>
+                    <div class="form-group">
+                        <label for="controlQuizId">Quiz ID:</label>
+                        <select id="controlQuizId">
+                            <option value="">Select a quiz...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="startQuiz()" class="btn-success">Start Quiz</button>
+                        <button onclick="endQuiz()" class="btn-danger">End Quiz</button>
+                        <button onclick="refreshQuizzes()" class="btn-admin">Refresh List</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Quizzes List -->
+            <div class="admin-section">
+                <h3>📊 Active Quizzes</h3>
+                <div id="quizList" class="quiz-list">
+                    <p>Loading quizzes...</p>
+                </div>
+            </div>
+            
+            <!-- Admin Console -->
+            <div class="admin-section">
+                <h3>💻 Admin Console</h3>
+                <div id="adminConsole"></div>
+                <div class="form-row">
+                    <input type="text" id="consoleCommand" placeholder="Type command here..." class="form-full">
+                    <button onclick="sendConsoleCommand()" class="btn-admin">Send Command</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Admin panel JavaScript
+        let adminConnected = false;
+        let adminUsername = '';
+        let ws = null;
+        let quizzes = new Map();
+
+        // DOM Elements
+        const connectionPanel = document.getElementById('connectionPanel');
+        const adminPanel = document.getElementById('adminPanel');
+        const adminConnectForm = document.getElementById('adminConnectForm');
+        const currentAdminUsernameSpan = document.getElementById('currentAdminUsername');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const adminConsole = document.getElementById('adminConsole');
+        const consoleCommand = document.getElementById('consoleCommand');
+
+        // Connect Form Handler
+        adminConnectForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            adminUsername = document.getElementById('adminUsername').value.trim();
+            const serverHost = document.getElementById('serverHost').value;
+            const serverPort = document.getElementById('serverPort').value;
+            
+            if (!adminUsername) {
+                alert('Please enter an admin username');
+                return;
+            }
+            
+            connectToServer(adminUsername, serverHost, serverPort);
+        });
+
+        // Connect to WebSocket server
+        function connectToServer(username, host, port) {
+            try {
+                logToConsole('🔄 Attempting to connect to ' + host + ':' + port);
+                const wsUrl = `ws://${host}:${port}`;
+                ws = new WebSocket(wsUrl);
+                
+                // Set connection timeout
+                const connectTimeout = setTimeout(() => {
+                    if (!adminConnected) {
+                        logToConsole('❌ Connection timeout - check if WebSocket server is running on port ' + port);
+                        alert('Connection timeout! Make sure WebSocket server is running on port ' + port);
+                        ws.close();
+                    }
+                }, 10000);
+                
+                ws.onopen = () => {
+                    clearTimeout(connectTimeout);
+                    console.log('Admin connected to WebSocket server');
+                    adminConnected = true;
+                    
+                    // Send connection message
+                    ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
+                    
+                    // Update UI
+                    connectionPanel.style.display = 'none';
+                    adminPanel.style.display = 'block';
+                    currentAdminUsernameSpan.textContent = username;
+                    statusIndicator.textContent = '🟢';
+                    
+                    logToConsole('✅ Connected as admin: ' + username);
+                    logToConsole('🎯 Admin panel ready! You can now create and manage quizzes.');
+                    refreshQuizzes();
+                };
+                
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    handleAdminMessage(message);
+                };
+                
+                ws.onclose = () => {
+                    adminConnected = false;
+                    statusIndicator.textContent = '🔴';
+                    logToConsole('❌ Connection closed');
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    logToConsole('❌ Connection error: ' + error);
+                    alert('WebSocket connection failed! Please check:\n1. WebSocket server is running on port ' + port + '\n2. Server address is correct\n3. No firewall blocking the connection');
+                };
+                
+            } catch (error) {
+                alert('Failed to connect: ' + error.message);
+            }
+        }
+
+        // Handle incoming messages
+        function handleAdminMessage(message) {
+            logToConsole(`📨 ${message.type}: ${message.content}`);
+            
+            if (message.type === 'SYSTEM') {
+                // Parse quiz information from system messages
+                if (message.content.includes('Quiz') && message.content.includes('ID:')) {
+                    // Extract quiz ID and name from the message
+                    parseQuizFromMessage(message.content);
+                    updateQuizLists();
+                } else if (message.content.includes('Active Quizzes:')) {
+                    // Parse quiz list response
+                    parseQuizListResponse(message.content);
+                }
+            }
+        }
+        
+        // Parse quiz creation message and extract quiz info
+        function parseQuizFromMessage(content) {
+            // Look for pattern: "Quiz 'name' created successfully! Quiz ID: xyz"
+            const match = content.match(/Quiz '(.+)' created successfully! Quiz ID: ([a-zA-Z0-9]+)/);
+            if (match) {
+                const quizName = match[1];
+                const quizId = match[2];
+                
+                // Add to local quiz storage
+                quizzes.set(quizId, {
+                    id: quizId,
+                    name: quizName,
+                    status: 'CREATED',
+                    questions: 0
+                });
+                
+                logToConsole(`✅ New quiz added: ${quizName} (ID: ${quizId})`);
+            }
+        }
+        
+        // Parse quiz list response from /quizzes command
+        function parseQuizListResponse(content) {
+            // Clear existing quizzes
+            quizzes.clear();
+            
+            // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
+            const lines = content.split('\n');
+            for (let line of lines) {
+                const match = line.match(/- (.+) \(ID: ([a-zA-Z0-9]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/);
+                if (match) {
+                    const quizName = match[1];
+                    const quizId = match[2];
+                    const adminName = match[3];
+                    const state = match[4];
+                    const questionCount = parseInt(match[5]);
+                    
+                    quizzes.set(quizId, {
+                        id: quizId,
+                        name: quizName,
+                        admin: adminName,
+                        status: state,
+                        questions: questionCount
+                    });
+                }
+            }
+            
+            logToConsole(`📊 Loaded ${quizzes.size} quizzes from server`);
+        }
+
+        // Quiz management functions
+        function createQuiz() {
+            const name = document.getElementById('quizName').value.trim();
+            if (!name) {
+                alert('Please enter a quiz name');
+                return;
+            }
+            
+            sendCommand(`/createquiz "${name}"`);
+            document.getElementById('quizName').value = '';
+            
+            // Refresh quiz list after a short delay to allow server response
+            setTimeout(() => {
+                refreshQuizzes();
+            }, 1000);
+        }
+
+        function addQuestion() {
+            const quizId = document.getElementById('selectedQuiz').value;
+            const question = document.getElementById('questionText').value.trim();
+            const opt1 = document.getElementById('option1').value.trim();
+            const opt2 = document.getElementById('option2').value.trim();
+            const opt3 = document.getElementById('option3').value.trim();
+            const opt4 = document.getElementById('option4').value.trim();
+            const correct = document.getElementById('correctAnswer').value;
+            const time = document.getElementById('timeLimit').value;
+            
+            if (!quizId || !question || !opt1 || !opt2 || !opt3 || !opt4) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const command = `/addquestion ${quizId}|${question}|${opt1},${opt2},${opt3},${opt4}|${correct}|${time}`;
+            sendCommand(command);
+            
+            // Clear form
+            document.getElementById('questionText').value = '';
+            document.getElementById('option1').value = '';
+            document.getElementById('option2').value = '';
+            document.getElementById('option3').value = '';
+            document.getElementById('option4').value = '';
+            
+            // Refresh quiz list to update question count
+            setTimeout(() => {
+                refreshQuizzes();
+            }, 1000);
+        }
+
+        function inviteParticipants() {
+            const quizId = document.getElementById('inviteQuizId').value;
+            const participants = document.getElementById('participants').value.trim();
+            
+            if (!quizId || !participants) {
+                alert('Please select a quiz and enter participants');
+                return;
+            }
+            
+            sendCommand(`/invitequiz ${quizId} ${participants}`);
+            document.getElementById('participants').value = '';
+        }
+
+        function startQuiz() {
+            const quizId = document.getElementById('controlQuizId').value;
+            if (!quizId) {
+                alert('Please select a quiz');
+                return;
+            }
+            
+            sendCommand(`/startquiz ${quizId}`);
+        }
+
+        function endQuiz() {
+            const quizId = document.getElementById('controlQuizId').value;
+            if (!quizId) {
+                alert('Please select a quiz');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to end this quiz?')) {
+                sendCommand(`/endquiz ${quizId}`);
+            }
+        }
+
+        function refreshQuizzes() {
+            logToConsole('🔄 Refreshing quiz list...');
+            sendCommand('/quizzes');
+        }
+
+        function sendConsoleCommand() {
+            const command = consoleCommand.value.trim();
+            if (command) {
+                sendCommand(command);
+                consoleCommand.value = '';
+            }
+        }
+
+        function sendCommand(command) {
+            console.log('sendCommand called with:', command);
+            console.log('adminConnected:', adminConnected);
+            console.log('ws:', ws);
+            console.log('ws.readyState:', ws ? ws.readyState : 'no ws');
+            
+            if (!adminConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+                const errorMsg = 'Not connected to server!\n\nDebug info:\n' +
+                    'Connected: ' + adminConnected + '\n' +
+                    'WebSocket exists: ' + (ws ? 'Yes' : 'No') + '\n' +
+                    'WebSocket ready: ' + (ws ? (ws.readyState === WebSocket.OPEN ? 'Yes' : 'No') : 'N/A');
+                    
+                logToConsole('❌ Connection error: ' + errorMsg);
+                alert(errorMsg);
+                return;
+            }
+            
+            logToConsole('🎮 Sending: ' + command);
+            
+            try {
+                ws.send(JSON.stringify({
+                    type: 'CHAT',
+                    sender: adminUsername,
+                    content: command
+                }));
+                logToConsole('✅ Command sent successfully');
+            } catch (error) {
+                logToConsole('❌ Failed to send command: ' + error);
+                alert('Failed to send command: ' + error);
+            }
+        }
+
+        function logToConsole(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            adminConsole.textContent += `[${timestamp}] ${message}\n`;
+            adminConsole.scrollTop = adminConsole.scrollHeight;
+        }
+
+        function updateQuizLists() {
+            // Get all quiz select elements
+            const selectors = [
+                document.getElementById('selectedQuiz'),    // Add question
+                document.getElementById('inviteQuizId'),   // Invite participants  
+                document.getElementById('controlQuizId')   // Quiz control
+            ];
+            
+            // Clear and repopulate each selector
+            selectors.forEach(select => {
+                if (select) {
+                    // Save current selection
+                    const currentValue = select.value;
+                    
+                    // Clear existing options except first
+                    select.innerHTML = '<option value="">Select a quiz...</option>';
+                    
+                    // Add quiz options
+                    quizzes.forEach(quiz => {
+                        const option = document.createElement('option');
+                        option.value = quiz.id;
+                        option.textContent = `${quiz.name} (${quiz.id}) - ${quiz.status} - ${quiz.questions} questions`;
+                        select.appendChild(option);
+                    });
+                    
+                    // Restore selection if it still exists
+                    if (currentValue && quizzes.has(currentValue)) {
+                        select.value = currentValue;
+                    }
+                }
+            });
+            
+            // Update quiz list display
+            updateQuizListDisplay();
+            
+            logToConsole(`🔄 Updated quiz dropdowns with ${quizzes.size} quizzes`);
+        }
+        
+        function updateQuizListDisplay() {
+            const quizListDiv = document.getElementById('quizList');
+            
+            if (quizzes.size === 0) {
+                quizListDiv.innerHTML = '<p>No active quizzes. Create a quiz to get started!</p>';
+                return;
+            }
+            
+            let html = '';
+            quizzes.forEach(quiz => {
+                const statusClass = `status-${quiz.status.toLowerCase()}`;
+                html += `
+                    <div class="quiz-item">
+                        <div class="quiz-info">
+                            <strong>${quiz.name}</strong><br>
+                            <small>ID: ${quiz.id} | Questions: ${quiz.questions} | Admin: ${quiz.admin || adminUsername}</small>
+                        </div>
+                        <div class="quiz-actions">
+                            <span class="status-indicator ${statusClass}">${quiz.status}</span>
+                            <button onclick="selectQuizForEditing('${quiz.id}')" class="btn-admin" style="font-size: 0.8em; padding: 5px 10px;">Edit</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            quizListDiv.innerHTML = html;
+        }
+        
+        function selectQuizForEditing(quizId) {
+            // Auto-select this quiz in all dropdowns
+            const selectors = ['selectedQuiz', 'inviteQuizId', 'controlQuizId'];
+            selectors.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.value = quizId;
+                }
+            });
+            
+            logToConsole(`🎯 Selected quiz ${quizId} for editing`);
+        }
+
+        // Disconnect handler
+        disconnectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.send(JSON.stringify({type: 'DISCONNECT', sender: adminUsername}));
+                ws.close();
+            }
+            
+            adminConnected = false;
+            connectionPanel.style.display = 'block';
+            adminPanel.style.display = 'none';
+            adminUsername = '';
+        });
+
+        // Console command enter key handler
+        consoleCommand.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendConsoleCommand();
+            }
+        });
+
+        // Initialize
+        console.log('NetTalk Quiz Admin Panel loaded');
+    </script>
+</body>
+</html>

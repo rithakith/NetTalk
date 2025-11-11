@@ -2,10 +2,14 @@ package com.chatapp.server;
 
 import com.chatapp.common.Message;
 import com.chatapp.api.ExternalApiClient;
+import com.chatapp.quiz.QuizManager;
+import com.chatapp.quiz.Quiz;
+import com.chatapp.quiz.QuizQuestion;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 /**
  * Main Chat Server - Integrates all components from all 5 members
@@ -38,19 +42,106 @@ public class ChatServer {
     // Message tracking component
     private MessageTracker messageTracker;
     
+    // Quiz management component
+    private QuizManager quizManager;
+    
     // Server state
     private volatile boolean running;
     
     public ChatServer() {
         this.userManager = new UserManager();
         this.messageTracker = new MessageTracker(userManager);
+        this.quizManager = new QuizManager();
         this.clientExecutor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.running = false;
+        
+        // Set up quiz event listener
+        setupQuizEventListener();
         
         System.out.println("=".repeat(60));
         System.out.println("ChatSystem - Network Programming Assignment");
         System.out.println("Demonstrating 5 Network Programming Concepts");
         System.out.println("=".repeat(60));
+    }
+    
+    /**
+     * Set up quiz event listener to handle quiz events
+     */
+    private void setupQuizEventListener() {
+        quizManager.setEventListener(new QuizManager.QuizEventListener() {
+            @Override
+            public void onQuizCreated(Quiz quiz) {
+                System.out.println("[QuizEvents] Quiz created: " + quiz.getQuizId());
+            }
+            
+            @Override
+            public void onQuizStarted(Quiz quiz) {
+                System.out.println("[QuizEvents] Quiz started: " + quiz.getQuizId());
+                // Broadcast to all participants that quiz has started
+                Message startMsg = new Message(Message.MessageType.QUIZ_START, "Server",
+                    "Quiz '" + quiz.getQuizName() + "' has started! Get ready!");
+                broadcastToParticipants(quiz, startMsg);
+            }
+            
+            @Override
+            public void onQuizQuestionChanged(Quiz quiz, QuizQuestion question) {
+                System.out.println("[QuizEvents] New question for quiz: " + quiz.getQuizId());
+                // Send current question to all participants
+                String questionMsg = "Question " + (quiz.getCurrentQuestionIndex() + 1) + ":\n" +
+                                   question.getQuestionText() + "\n";
+                for (int i = 0; i < question.getOptions().length; i++) {
+                    questionMsg += (i + 1) + ". " + question.getOptions()[i] + "\n";
+                }
+                questionMsg += "Time limit: " + question.getTimeLimit() + " seconds\n";
+                questionMsg += "Use /answer " + quiz.getQuizId() + " <option_number> to submit your answer";
+                
+                Message qMsg = new Message(Message.MessageType.QUIZ_QUESTION, "Server", questionMsg);
+                broadcastToParticipants(quiz, qMsg);
+            }
+            
+            @Override
+            public void onQuizCompleted(Quiz quiz) {
+                System.out.println("[QuizEvents] Quiz completed: " + quiz.getQuizId());
+                // Send results to all participants
+                String resultsMsg = "Quiz '" + quiz.getQuizName() + "' completed!\n" +
+                                  "Final results will be shown shortly.";
+                Message resultMsg = new Message(Message.MessageType.QUIZ_RESULTS, "Server", resultsMsg);
+                broadcastToParticipants(quiz, resultMsg);
+            }
+            
+            @Override
+            public void onParticipantJoined(Quiz quiz, String username) {
+                System.out.println("[QuizEvents] Participant joined: " + username + " to quiz " + quiz.getQuizId());
+            }
+            
+            @Override
+            public void onAnswerSubmitted(Quiz quiz, com.chatapp.quiz.QuizResult result) {
+                System.out.println("[QuizEvents] Answer submitted by: " + result.getUsername());
+            }
+            
+            @Override
+            public void sendQuizMessage(String message, List<String> recipients) {
+                Message msg = new Message(Message.MessageType.SYSTEM, "QuizSystem", message);
+                for (String username : recipients) {
+                    ClientHandler handler = userManager.getUserHandler(username);
+                    if (handler != null) {
+                        handler.sendMessage(msg);
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Broadcast message to all quiz participants
+     */
+    private void broadcastToParticipants(Quiz quiz, Message message) {
+        for (String participantName : quiz.getParticipants().keySet()) {
+            ClientHandler handler = userManager.getUserHandler(participantName);
+            if (handler != null) {
+                handler.sendMessage(message);
+            }
+        }
     }
     
     /**
@@ -266,16 +357,243 @@ public class ChatServer {
     }
     
     /**
-     * Get server statistics
+     * Print server statistics
      */
     public void printStatistics() {
-        System.out.println("\n" + "=".repeat(60));
-        System.out.println("Server Statistics");
+        System.out.println("=".repeat(60));
+        System.out.println("SERVER STATISTICS");
         System.out.println("=".repeat(60));
         System.out.println("Active Users: " + userManager.getUserCount());
         System.out.println("Total Messages: " + userManager.getChatHistory().size());
         System.out.println("Online Users: " + String.join(", ", userManager.getActiveUsernames()));
+        System.out.println("Active Quizzes: " + quizManager.getActiveQuizzesCount());
         System.out.println("=".repeat(60) + "\n");
+    }
+
+    /**
+     * Get the QuizManager instance
+     */
+    public QuizManager getQuizManager() {
+        return quizManager;
+    }
+
+    // ============== Quiz Handling Methods ==============
+
+    /**
+     * Handle generic quiz messages
+     */
+    public void handleQuizMessage(Message message, ClientHandler sender) {
+        // This can be expanded to handle different quiz message types
+        System.out.println("[ChatServer] Quiz message received: " + message.getType());
+        // For now, just broadcast quiz messages to all users
+        broadcastMessage(message);
+    }
+
+    /**
+     * Handle create quiz command
+     */
+    public void handleCreateQuiz(String quizName, String adminUsername, ClientHandler sender) {
+        try {
+            Quiz quiz = quizManager.createQuiz(quizName, adminUsername);
+            
+            Message response = new Message(Message.MessageType.SYSTEM, "Server",
+                "Quiz '" + quizName + "' created successfully! Quiz ID: " + quiz.getQuizId() + 
+                "\nUse /addquestion to add questions to your quiz.");
+            sender.sendMessage(response);
+            
+            System.out.println("[ChatServer] Quiz created: " + quiz.getQuizId() + " by " + adminUsername);
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to create quiz: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle add question to quiz command
+     */
+    public void handleAddQuestion(String quizId, String questionText, String[] options, 
+                                 int correctIndex, int timeLimit, String adminUsername, ClientHandler sender) {
+        try {
+            boolean success = quizManager.addQuestion(quizId, questionText, options, correctIndex, timeLimit, adminUsername);
+            
+            Message response;
+            if (success) {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Question added to quiz " + quizId + " successfully!");
+            } else {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to add question. Check quiz ID and ensure you're the admin.");
+            }
+            sender.sendMessage(response);
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to add question: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle invite users to quiz command
+     */
+    public void handleInviteToQuiz(String quizId, String[] usernames, String adminUsername, ClientHandler sender) {
+        try {
+            Quiz quiz = quizManager.getQuiz(quizId);
+            if (quiz == null) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz not found: " + quizId));
+                return;
+            }
+            
+            if (!quiz.getAdminUsername().equals(adminUsername)) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Only the quiz admin can invite users."));
+                return;
+            }
+            
+            int invitedCount = 0;
+            for (String username : usernames) {
+                username = username.trim();
+                ClientHandler userHandler = userManager.getUserHandler(username);
+                if (userHandler != null) {
+                    Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
+                        "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
+                        "Type /joinquiz " + quizId + " to participate!");
+                    userHandler.sendMessage(invitation);
+                    invitedCount++;
+                } else {
+                    System.out.println("[ChatServer] User not found for quiz invitation: " + username);
+                }
+            }
+            
+            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Sent invitations to " + invitedCount + " users for quiz " + quizId));
+                
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to send invitations: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle start quiz command
+     */
+    public void handleStartQuiz(String quizId, String adminUsername, ClientHandler sender) {
+        try {
+            boolean success = quizManager.startQuiz(quizId, adminUsername);
+            
+            Message response;
+            if (success) {
+                Quiz quiz = quizManager.getQuiz(quizId);
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz '" + quiz.getQuizName() + "' started successfully!");
+                
+                // Notify all participants
+                broadcastQuizStart(quiz);
+            } else {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to start quiz. Check quiz ID, ensure you're the admin, and that the quiz has questions.");
+            }
+            sender.sendMessage(response);
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to start quiz: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle join quiz command
+     */
+    public void handleJoinQuiz(String quizId, String username, ClientHandler sender) {
+        try {
+            boolean success = quizManager.joinQuiz(quizId, username);
+            
+            Message response;
+            if (success) {
+                Quiz quiz = quizManager.getQuiz(quizId);
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Successfully joined quiz '" + quiz.getQuizName() + "'!");
+            } else {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to join quiz. Quiz may not exist or may have already started.");
+            }
+            sender.sendMessage(response);
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to join quiz: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle quiz answer submission
+     */
+    public void handleQuizAnswer(String quizId, int answerIndex, String username, ClientHandler sender) {
+        try {
+            long responseTime = System.currentTimeMillis(); // For now, we'll use current time as response time
+            boolean success = quizManager.submitAnswer(quizId, username, answerIndex, responseTime);
+            
+            Message response;
+            if (success) {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Answer submitted for quiz " + quizId);
+            } else {
+                response = new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to submit answer. Check quiz ID and ensure the quiz is active.");
+            }
+            sender.sendMessage(response);
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to submit answer: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle list quizzes command
+     */
+    public void handleListQuizzes(String username, ClientHandler sender) {
+        try {
+            List<Quiz> activeQuizzes = quizManager.getActiveQuizzes();
+            
+            StringBuilder response = new StringBuilder("Active Quizzes:\n");
+            if (activeQuizzes.isEmpty()) {
+                response.append("No active quizzes available.");
+            } else {
+                for (Quiz quiz : activeQuizzes) {
+                    response.append("- ").append(quiz.getQuizName())
+                           .append(" (ID: ").append(quiz.getQuizId()).append(")")
+                           .append(" - Admin: ").append(quiz.getAdminUsername())
+                           .append(" - State: ").append(quiz.getState())
+                           .append(" - Questions: ").append(quiz.getQuestions().size())
+                           .append("\n");
+                }
+            }
+            
+            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server", response.toString()));
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to list quizzes: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Broadcast quiz start to all participants
+     */
+    private void broadcastQuizStart(Quiz quiz) {
+        Message startMessage = new Message(Message.MessageType.QUIZ_START, "Server",
+            "Quiz '" + quiz.getQuizName() + "' has started!");
+        
+        // Send to all participants
+        for (String participantName : quiz.getParticipants().keySet()) {
+            ClientHandler handler = userManager.getUserHandler(participantName);
+            if (handler != null) {
+                handler.sendMessage(startMessage);
+            }
+        }
     }
     
     /**

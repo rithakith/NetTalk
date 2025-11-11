@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Connection Test</title>
+</head>
+<body>
+    <h1>Admin WebSocket Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testQuizCommand()">Test Quiz Command</button>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        let connected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+
+        function testConnection() {
+            log('Testing connection to ws://localhost:8889');
+            
+            try {
+                ws = new WebSocket('ws://localhost:8889');
+                
+                ws.onopen = () => {
+                    log('✅ WebSocket connected!');
+                    connected = true;
+                    document.getElementById('status').textContent = 'Connected';
+                    
+                    // Send connection message
+                    ws.send(JSON.stringify({
+                        type: 'CONNECT',
+                        sender: 'TestAdmin'
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    log('📨 Received: ' + event.data);
+                };
+                
+                ws.onclose = () => {
+                    log('❌ WebSocket closed');
+                    connected = false;
+                    document.getElementById('status').textContent = 'Disconnected';
+                };
+                
+                ws.onerror = (error) => {
+                    log('❌ WebSocket error: ' + error);
+                    document.getElementById('status').textContent = 'Error';
+                };
+                
+            } catch (error) {
+                log('❌ Failed to create WebSocket: ' + error);
+            }
+        }
+
+        function testQuizCommand() {
+            if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ Not connected - cannot send command');
+                return;
+            }
+            
+            const command = '/createquiz "Test Quiz from Admin"';
+            log('🎮 Sending command: ' + command);
+            
+            try {
+                ws.send(JSON.stringify({
+                    type: 'CHAT',
+                    sender: 'TestAdmin',
+                    content: command
+                }));
+                log('✅ Command sent');
+            } catch (error) {
+                log('❌ Failed to send command: ' + error);
+            }
+        }
+
+        // Auto-start connection test
+        window.onload = () => {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

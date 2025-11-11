@@ -9,8 +9,11 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌐 ChatSystem</h1>
+            <h1>🌐 NetTalk Quiz System</h1>
             <p>Network Programming - Real-Time Chat Application</p>
+            <div style="margin-top: 15px;">
+                <a href="admin.html" class="btn-primary" style="text-decoration: none; padding: 10px 20px; border-radius: 5px; color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">👑 Admin Panel</a>
+            </div>
         </header>
         
         <!-- Connection Panel -->
@@ -50,6 +53,19 @@
                 <div class="sidebar">
                     <h3>Online Users</h3>
                     <ul id="userList"></ul>
+                    
+                    <h3>Quiz Commands</h3>
+                    <div class="quiz-commands">
+                        <h4>Available Commands:</h4>
+                        <code>/createquiz &lt;name&gt;</code><br>
+                        <code>/addquestion quiz_id|question|opt1,opt2,opt3,opt4|correct|time</code><br>
+                        <code>/invitequiz quiz_id user1,user2</code><br>
+                        <code>/startquiz quiz_id</code><br>
+                        <code>/joinquiz quiz_id</code><br>
+                        <code>/answer quiz_id option_num</code><br>
+                        <code>/quizzes</code> - List all<br>
+                        <code>/help</code> - Show help
+                    </div>
                     
                     <h3>API Commands</h3>
                     <div class="api-commands">

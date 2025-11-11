@@ -242,8 +242,18 @@ function sendMessage(message) {
             return;
         }
     } else if (message.startsWith('/')) {
-        // API command
-        messageObj.type = 'API_REQUEST';
+        // Check if it's a quiz command or API command
+        const command = message.split(' ')[0].toLowerCase();
+        const quizCommands = ['/createquiz', '/addquestion', '/invitequiz', '/startquiz', 
+                             '/joinquiz', '/answer', '/quizzes', '/help'];
+        
+        if (quizCommands.includes(command)) {
+            // Quiz command - send as CHAT message for processing
+            messageObj.type = 'CHAT';
+        } else {
+            // API command
+            messageObj.type = 'API_REQUEST';
+        }
     } else {
         // Regular chat message
         messageObj.type = 'CHAT';
@@ -330,6 +340,32 @@ function handleMessage(message) {
                     console.error('Failed to parse user list:', e);
                 }
             }
+            break;
+            
+        // Quiz message types
+        case 'QUIZ_CREATED':
+        case 'QUIZ_INVITATION':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-invitation');
+            break;
+            
+        case 'QUIZ_START':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-start');
+            // Show quiz interface or notification
+            showQuizNotification('Quiz Started!', message.content);
+            break;
+            
+        case 'QUIZ_QUESTION':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-question');
+            // Highlight question in UI
+            showQuizQuestion(message.content);
+            break;
+            
+        case 'QUIZ_RESULTS':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-results');
+            break;
+            
+        case 'QUIZ_ENDED':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-ended');
             break;
             
         default:
@@ -479,13 +515,15 @@ function ensureTypingIndicatorAtBottom() {
 /**
  * Add message to chat area
  */
-function addMessage(type, sender, content, messageId = null, status = null) {
+function addMessage(type, sender, content, messageId = null, status = null, quizStyle = null) {
     const messageDiv = document.createElement('div');
     
     // Determine message alignment and styling based on sender and type
     let messageClass = 'message ';
     if (type === 'CHAT') {
         messageClass += sender === username ? 'message-sent' : 'message-received';
+    } else if (type === 'QUIZ' && quizStyle) {
+        messageClass += `message-quiz message-${quizStyle}`;
     } else {
         messageClass += `message-${type.toLowerCase()}`;
     }
@@ -928,5 +966,62 @@ window.clearChatHistory = function() {
     if (confirm('Are you sure you want to clear all chat history from local storage?')) {
         clearMessagesFromStorage();
         alert('Chat history cleared!');
+    }
+}
+
+// ============== Quiz Functions ==============
+
+/**
+ * Show quiz notification with special styling
+ */
+function showQuizNotification(title, content) {
+    // Create temporary notification element
+    const notification = document.createElement('div');
+    notification.className = 'quiz-notification';
+    notification.innerHTML = `<strong>${title}</strong><br>${content}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        max-width: 300px;
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+/**
+ * Show quiz question with special highlighting
+ */
+function showQuizQuestion(questionContent) {
+    // Scroll to the question message
+    const messages = document.querySelectorAll('.message-quiz-question');
+    if (messages.length > 0) {
+        const lastQuestion = messages[messages.length - 1];
+        lastQuestion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add pulse effect to highlight the question
+        lastQuestion.style.animation = 'pulse 1s ease-in-out 3';
+    }
+    
+    // Show desktop notification if supported
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Quiz Question Available', {
+            body: 'A new quiz question is ready!',
+            icon: '/favicon.ico'
+        });
     }
 };
