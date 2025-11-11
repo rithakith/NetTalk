@@ -22,9 +22,16 @@ let quizAnswers = new Map(); // Map of questionNumber to selectedOption (0-3)
 let quizQuestions = []; // Array of quiz questions
 let joinedQuizId = null; // ID of quiz user has joined
 
+// Private chat tracking variables
+let privateChats = new Map(); // Map of username to array of messages
+let currentPrivateChat = null; // Currently active private chat username
+let chatView = 'public'; // 'public' or 'private'
+let onlineUsers = []; // List of currently online users
+
 // Local Storage keys
 const STORAGE_KEYS = {
     MESSAGES: 'chatMessages',
+    PRIVATE_CHATS: 'privateChats',
     USERNAME: 'lastUsername',
     SESSION: 'chatSession',
     SERVER_HOST: 'serverHost',
@@ -164,6 +171,10 @@ function connectToServer(user, host, port) {
             
             // Load previous messages from local storage
             loadMessagesFromStorage();
+            // Load private chats for this user (persisted)
+            loadPrivateChatsFromStorage();
+            // Refresh user list so unread badges appear
+            updateUserList(onlineUsers);
             
             // Add system message
             addMessage('SYSTEM', 'Server', `Connecting as ${username}...`);
@@ -235,9 +246,21 @@ function sendMessage(message) {
         content: message
     };
     
-    // Handle different message types
-    if (message.startsWith('@')) {
-        // Private message
+    // If in private chat view, automatically send as private message
+    if (chatView === 'private' && currentPrivateChat) {
+        messageObj = {
+            type: 'PRIVATE_MSG',
+            sender: username,
+            receiver: currentPrivateChat,
+            content: message
+        };
+        
+        // Add to local history immediately
+        addPrivateMessageToHistory(currentPrivateChat, message, username);
+    }
+    // Handle different message types for public chat
+    else if (message.startsWith('@')) {
+        // Private message in public chat
         const spaceIndex = message.indexOf(' ');
         if (spaceIndex > 0) {
             const receiver = message.substring(1, spaceIndex);
@@ -248,6 +271,9 @@ function sendMessage(message) {
                 receiver: receiver,
                 content: content
             };
+            
+            // Add to local history
+            addPrivateMessageToHistory(receiver, content, username);
         } else {
             alert('Invalid private message format. Use: @username message');
             return;
@@ -307,8 +333,19 @@ function handleMessage(message) {
             
         case 'PRIVATE_MSG':
             if (message.receiver === username || message.sender === username) {
-                addMessage('PRIVATE', message.sender, 
-                    `@${message.receiver}: ${message.content}`);
+                // Determine the other user in the conversation
+                const otherUser = message.sender === username ? message.receiver : message.sender;
+                
+                // Add to private chat history if sent by the other user
+                if (message.sender !== username) {
+                    addPrivateMessageToHistory(otherUser, message.content, message.sender);
+                }
+                
+                // Only show in public chat if not in private chat view
+                if (chatView !== 'private') {
+                    addMessage('PRIVATE', message.sender, 
+                        `@${message.receiver}: ${message.content}`);
+                }
             }
             break;
             
@@ -644,26 +681,253 @@ function addMessage(type, sender, content, messageId = null, status = null, quiz
  * Update user list
  */
 function updateUserList(users) {
+    onlineUsers = users; // Store globally
     userList.innerHTML = '';
     users.forEach(user => {
         const li = document.createElement('li');
-        li.textContent = user;
+        
+        // Create user item with unread indicator
+        const userItem = document.createElement('div');
+        userItem.style.display = 'flex';
+        userItem.style.alignItems = 'center';
+        userItem.style.justifyContent = 'space-between';
+        userItem.style.width = '100%';
+        
+        const userName = document.createElement('span');
+        userName.textContent = user;
+        userItem.appendChild(userName);
+        
+        // Add unread badge if there are unread messages
+        const unreadCount = getUnreadPrivateMessageCount(user);
+        if (unreadCount > 0 && user !== username) {
+            const badge = document.createElement('span');
+            badge.className = 'unread-badge';
+            badge.textContent = unreadCount;
+            userItem.appendChild(badge);
+        }
+        
+        li.appendChild(userItem);
+        
         if (user === username) {
             li.style.fontWeight = 'bold';
             li.style.color = '#667eea';
         } else {
-            // Add click handler to start chatting with user
+            // Add click handler to open private chat
             li.style.cursor = 'pointer';
+            li.className = currentPrivateChat === user ? 'user-item-active' : 'user-item';
             li.addEventListener('click', () => {
-                showChatInterface();
-                // Pre-fill message input with @username
-                messageInput.value = `@${user} `;
-                messageInput.focus();
+                openPrivateChat(user);
             });
-            li.title = `Click to send private message to ${user}`;
+            li.title = `Click to chat privately with ${user}`;
         }
         userList.appendChild(li);
     });
+}
+
+/**
+ * Get unread private message count for a user
+ */
+function getUnreadPrivateMessageCount(user) {
+    const chatMessages = privateChats.get(user);
+    if (!chatMessages) return 0;
+    return chatMessages.filter(msg => !msg.read && msg.sender === user).length;
+}
+
+/**
+ * Open private chat with a specific user
+ */
+function openPrivateChat(targetUser) {
+    console.log(`Opening private chat with ${targetUser}`);
+    
+    currentPrivateChat = targetUser;
+    chatView = 'private';
+    
+    // Initialize private chat history if not exists
+    if (!privateChats.has(targetUser)) {
+        privateChats.set(targetUser, []);
+    }
+    
+    // Mark all messages from this user as read
+    markPrivateChatAsRead(targetUser);
+    
+    // Show chat interface and update display
+    showChatInterface();
+    displayPrivateChatInterface(targetUser);
+    
+    // Update user list to highlight active chat
+    updateUserList(onlineUsers);
+    
+    // Focus message input
+    messageInput.focus();
+}
+
+/**
+ * Close private chat and return to public chat
+ */
+function closePrivateChat() {
+    console.log('Closing private chat');
+    
+    currentPrivateChat = null;
+    chatView = 'public';
+    
+    // Restore public message area
+    displayPublicChatInterface();
+    
+    // Update user list
+    updateUserList(onlineUsers);
+    
+    messageInput.focus();
+}
+
+/**
+ * Display private chat interface
+ */
+function displayPrivateChatInterface(targetUser) {
+    // Hide welcome screen if visible
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+    }
+    
+    // Clear and show message area
+    messageArea.innerHTML = '';
+    messageArea.style.display = 'block';
+    
+    // Add private chat header
+    const chatHeader = document.createElement('div');
+    chatHeader.className = 'private-chat-header';
+    chatHeader.innerHTML = `
+        <button class="btn-back-to-public" onclick="closePrivateChat()">
+            ← Back to Public Chat
+        </button>
+        <div class="private-chat-title">
+            <span class="private-chat-icon">💬</span>
+            <strong>Private Chat with ${targetUser}</strong>
+        </div>
+    `;
+    messageArea.appendChild(chatHeader);
+    
+    // Add private messages container
+    const messagesContainer = document.createElement('div');
+    messagesContainer.className = 'private-messages-container';
+    messagesContainer.id = 'privateMessagesContainer';
+    messageArea.appendChild(messagesContainer);
+    
+    // Load and display existing messages
+    updatePrivateMessageArea(targetUser);
+    
+    // Update placeholder
+    messageInput.placeholder = `Message ${targetUser}...`;
+}
+
+/**
+ * Display public chat interface
+ */
+function displayPublicChatInterface() {
+    // Clear message area
+    messageArea.innerHTML = '';
+    
+    // Reload public messages (you might want to store these separately)
+    // For now, just show welcome screen
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'flex';
+    }
+    messageArea.style.display = 'none';
+    
+    // Update placeholder
+    messageInput.placeholder = 'Type a message to start chatting...';
+}
+
+/**
+ * Update private message area with messages
+ */
+function updatePrivateMessageArea(targetUser) {
+    const container = document.getElementById('privateMessagesContainer');
+    if (!container) return;
+    
+    const messages = privateChats.get(targetUser) || [];
+    
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="private-chat-empty">
+                <div class="empty-icon">💭</div>
+                <p>No messages yet</p>
+                <p class="empty-hint">Start the conversation by typing a message below</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    messages.forEach(msg => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `private-message ${msg.sender === username ? 'sent' : 'received'}`;
+        
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'private-message-bubble';
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'private-message-content';
+        messageContent.textContent = msg.content;
+        
+        const messageTime = document.createElement('div');
+        messageTime.className = 'private-message-time';
+        messageTime.textContent = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        messageBubble.appendChild(messageContent);
+        messageBubble.appendChild(messageTime);
+        messageDiv.appendChild(messageBubble);
+        
+        container.appendChild(messageDiv);
+    });
+    
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Mark private chat as read
+ */
+function markPrivateChatAsRead(targetUser) {
+    const messages = privateChats.get(targetUser);
+    if (messages) {
+        messages.forEach(msg => {
+            if (msg.sender === targetUser) {
+                msg.read = true;
+            }
+        });
+        // Persist change
+        savePrivateChatsToStorage();
+    }
+}
+
+/**
+ * Add private message to chat history
+ */
+function addPrivateMessageToHistory(targetUser, message, sender) {
+    if (!privateChats.has(targetUser)) {
+        privateChats.set(targetUser, []);
+    }
+    
+    const chatMessages = privateChats.get(targetUser);
+    chatMessages.push({
+        sender: sender,
+        content: message,
+        timestamp: new Date().toISOString(),
+        read: sender === username || chatView === 'private' && currentPrivateChat === targetUser
+    });
+    
+    // Update display if this is the active chat
+    if (chatView === 'private' && currentPrivateChat === targetUser) {
+        updatePrivateMessageArea(targetUser);
+    }
+    
+    // Update user list to show unread badge
+    updateUserList(onlineUsers);
+
+    // Persist private chats
+    savePrivateChatsToStorage();
 }
 
 /**
@@ -901,6 +1165,40 @@ function displayStoredMessage(message) {
 /**
  * Clear all messages from local storage
  */
+function savePrivateChatsToStorage() {
+    try {
+        if (!username) return;
+        const data = {};
+        privateChats.forEach((msgs, user) => {
+            data[user] = msgs;
+        });
+        const key = `${STORAGE_KEYS.PRIVATE_CHATS}_${username}`;
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log('Private chats saved to local storage');
+    } catch (error) {
+        console.error('Failed to save private chats to local storage:', error);
+    }
+}
+
+function loadPrivateChatsFromStorage() {
+    try {
+        if (!username) return;
+        const key = `${STORAGE_KEYS.PRIVATE_CHATS}_${username}`;
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        const obj = JSON.parse(raw);
+        privateChats.clear();
+        Object.keys(obj).forEach(user => {
+            // Ensure message array exists
+            const arr = Array.isArray(obj[user]) ? obj[user] : [];
+            privateChats.set(user, arr);
+        });
+        console.log('Private chats loaded from local storage');
+    } catch (error) {
+        console.error('Failed to load private chats from local storage:', error);
+    }
+}
+
 function clearMessagesFromStorage() {
     try {
         localStorage.removeItem(STORAGE_KEYS.MESSAGES);
@@ -1033,6 +1331,12 @@ window.clearChatHistory = function() {
         alert('Chat history cleared!');
     }
 }
+
+/**
+ * Make private chat functions globally accessible
+ */
+window.openPrivateChat = openPrivateChat;
+window.closePrivateChat = closePrivateChat;
 
 // ============== Quiz Functions ==============
 
