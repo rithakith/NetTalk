@@ -63,6 +63,23 @@
             background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
         }
         
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+        }
+        
         .quiz-list {
             max-height: 300px;
             overflow-y: auto;
@@ -915,11 +932,23 @@
         
         // Parse quiz creation message and extract quiz info
         function parseQuizFromMessage(content) {
-            // Look for pattern: "Quiz 'name' created successfully! Quiz ID: xyz"
-            const match = content.match(/Quiz '(.+)' created successfully! Quiz ID: ([a-zA-Z0-9]+)/);
+            // Look for pattern: "Quiz '"name"' created successfully! Quiz ID: xyz" or "Quiz 'name' created successfully! Quiz ID: xyz"
+            const match = content.match(/Quiz ['"](.+?)['"] created successfully! Quiz ID: ([a-zA-Z0-9_]+)/);
             if (match) {
-                const quizName = match[1];
+                let quizName = match[1];
                 const quizId = match[2];
+                
+                // Strip extra quotes from quiz name if present
+                quizName = quizName.replace(/^["']|["']$/g, '');
+                
+                // Update current quiz ID to match server's ID
+                // Compare with quotes stripped
+                const currentNameStripped = currentQuizName ? currentQuizName.replace(/^["']|["']$/g, '') : '';
+                if (currentNameStripped === quizName) {
+                    const oldId = currentQuizId;
+                    currentQuizId = quizId;
+                    logToConsole(`🔄 Updated current quiz ID: ${oldId} → ${quizId}`);
+                }
                 
                 // Add to local quiz storage
                 quizzes.set(quizId, {
@@ -931,7 +960,7 @@
                     createdAt: new Date().toISOString()
                 });
                 
-                logToConsole(`✅ New quiz added: ${quizName} (ID: ${quizId})`);
+                logToConsole(`✅ New quiz added: "${quizName}" (ID: ${quizId})`);
                 
                 // Save to localStorage
                 saveQuizzesToStorage();
@@ -947,7 +976,7 @@
             // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
             const lines = content.split('\n');
             for (let line of lines) {
-                const match = line.match(/- (.+) \(ID: ([a-zA-Z0-9]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/);
+                const match = line.match(/- (.+) \(ID: ([a-zA-Z0-9_]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/);
                 if (match) {
                     const quizName = match[1];
                     const quizId = match[2];
@@ -1257,6 +1286,7 @@
                         <div class="quiz-actions">
                             <span class="status-indicator ${statusClass}">${quiz.status}</span>
                             <button onclick="selectQuizForEditing('${quiz.id}')" class="btn-admin" style="font-size: 0.8em; padding: 5px 10px;">Edit</button>
+                            <button onclick="deleteQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">Delete</button>
                         </div>
                     </div>
                 `;
@@ -1276,6 +1306,46 @@
             });
             
             logToConsole(`🎯 Selected quiz ${quizId} for editing`);
+        }
+        
+        /**
+         * Delete a quiz permanently by ID
+         */
+        function deleteQuizById(quizId) {
+            const quiz = quizzes.get(quizId);
+            if (!quiz) {
+                alert('Quiz not found!');
+                return;
+            }
+            
+            const quizName = quiz.name;
+            
+            // Confirm deletion
+            const confirmed = confirm('Are you sure you want to permanently delete the quiz "' + quizName + '"?\n\nThis action cannot be undone!');
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            // Send delete command to server
+            sendCommand('/deletequiz ' + quizId);
+            
+            // Remove from local storage
+            quizzes.delete(quizId);
+            saveQuizzesToStorage();
+            
+            // Update display
+            updateQuizListDisplay();
+            updateQuizLists();
+            
+            // If this was the current quiz, reset workflow
+            if (currentQuizId === quizId) {
+                currentQuizId = null;
+                currentQuizName = null;
+                questionCount = 0;
+            }
+            
+            logToConsole('Quiz "' + quizName + '" (' + quizId + ') deleted permanently');
         }
 
         // Disconnect handler

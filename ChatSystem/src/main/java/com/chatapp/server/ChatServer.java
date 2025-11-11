@@ -452,22 +452,46 @@ public class ChatServer {
             }
             
             int invitedCount = 0;
-            for (String username : usernames) {
-                username = username.trim();
-                ClientHandler userHandler = userManager.getUserHandler(username);
-                if (userHandler != null) {
-                    Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
-                        "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
-                        "Type /joinquiz " + quizId + " to participate!");
-                    userHandler.sendMessage(invitation);
-                    invitedCount++;
-                } else {
-                    System.out.println("[ChatServer] User not found for quiz invitation: " + username);
+            
+            // Check if inviting "all" users
+            if (usernames.length == 1 && usernames[0].trim().equalsIgnoreCase("all")) {
+                // Get all online users except the admin
+                List<String> allUsers = userManager.getActiveUsernames();
+                for (String user : allUsers) {
+                    if (!user.equals(adminUsername)) {  // Don't invite the admin
+                        ClientHandler userHandler = userManager.getUserHandler(user);
+                        if (userHandler != null) {
+                            Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
+                                "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
+                                "Type /joinquiz " + quizId + " to participate!");
+                            userHandler.sendMessage(invitation);
+                            invitedCount++;
+                        }
+                    }
+                }
+            } else {
+                // Invite specific users
+                for (String username : usernames) {
+                    username = username.trim();
+                    if (!username.isEmpty()) {
+                        ClientHandler userHandler = userManager.getUserHandler(username);
+                        if (userHandler != null) {
+                            Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
+                                "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
+                                "Type /joinquiz " + quizId + " to participate!");
+                            userHandler.sendMessage(invitation);
+                            invitedCount++;
+                        } else {
+                            System.out.println("[ChatServer] User not found for quiz invitation: " + username);
+                        }
+                    }
                 }
             }
             
-            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
-                "Sent invitations to " + invitedCount + " users for quiz " + quizId));
+            String invitationMessage = invitedCount > 0 
+                ? "Sent invitations to " + invitedCount + " user(s) for quiz '" + quiz.getQuizName() + "'"
+                : "No users found to invite. Make sure users are online.";
+            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server", invitationMessage));
                 
         } catch (Exception e) {
             Message error = new Message(Message.MessageType.SYSTEM, "Server",
@@ -499,6 +523,54 @@ public class ChatServer {
         } catch (Exception e) {
             Message error = new Message(Message.MessageType.SYSTEM, "Server",
                 "Failed to start quiz: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle delete quiz command
+     */
+    public void handleDeleteQuiz(String quizId, String username, ClientHandler sender) {
+        try {
+            Quiz quiz = quizManager.getQuiz(quizId);
+            
+            if (quiz == null) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz not found: " + quizId));
+                return;
+            }
+            
+            // Check if user is the admin
+            if (!quiz.getAdminUsername().equals(username)) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Only the quiz admin can delete this quiz."));
+                return;
+            }
+            
+            String quizName = quiz.getQuizName();
+            
+            // Delete the quiz
+            boolean success = quizManager.deleteQuiz(quizId);
+            
+            if (success) {
+                // Notify admin
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz '" + quizName + "' (ID: " + quizId + ") has been deleted permanently."));
+                
+                // Broadcast deletion to all connected users
+                Message deleteNotification = new Message(Message.MessageType.QUIZ_DELETED, "Server",
+                    "Quiz '" + quizName + "' (ID: " + quizId + ") has been deleted by the admin.");
+                broadcastMessage(deleteNotification);
+                
+                System.out.println("[ChatServer] Quiz deleted: " + quizId + " by " + username + " - broadcasted to all users");
+            } else {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to delete quiz: " + quizId));
+            }
+            
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to delete quiz: " + e.getMessage());
             sender.sendMessage(error);
         }
     }

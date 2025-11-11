@@ -180,6 +180,10 @@ public class ClientHandler implements Runnable {
                 handleAnswerCommand(args);
                 break;
                 
+            case "/deletequiz":
+                handleDeleteQuizCommand(args);
+                break;
+                
             case "/help":
                 handleHelpCommand();
                 break;
@@ -263,6 +267,16 @@ public class ClientHandler implements Runnable {
         server.handleJoinQuiz(args.trim(), username, this);
     }
     
+    private void handleDeleteQuizCommand(String args) {
+        if (args.trim().isEmpty()) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /deletequiz <quiz_id>"));
+            return;
+        }
+        
+        server.handleDeleteQuiz(args.trim(), username, this);
+    }
+    
     private void handleAnswerCommand(String args) {
         // Format: /answer quiz_id answer_index
         String[] parts = args.split("\\s+");
@@ -291,6 +305,7 @@ public class ClientHandler implements Runnable {
         help.append("/startquiz quiz_id - Start a quiz (admin only)\n");
         help.append("/joinquiz quiz_id - Join an existing quiz\n");
         help.append("/answer quiz_id answer_index - Submit answer during quiz\n");
+        help.append("/deletequiz quiz_id - Delete a quiz (admin only)\n");
         help.append("/quizzes - List active quizzes\n");
         help.append("/help - Show this help message");
         

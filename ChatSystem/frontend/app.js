@@ -393,6 +393,11 @@ function handleMessage(message) {
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-ended');
             break;
             
+        case 'QUIZ_DELETED':
+            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-deleted');
+            handleQuizDeleted(message);
+            break;
+            
         default:
             console.warn('Unknown message type:', message.type);
     }
@@ -1415,6 +1420,59 @@ function handleQuizMessage(message) {
                 showQuizNotification(quizId, quizName, quiz.admin, 'running');
             }
         }
+    }
+}
+
+/**
+ * Handle quiz deleted notification
+ */
+function handleQuizDeleted(message) {
+    const content = message.content;
+    console.log('🗑️ Received quiz deletion notification:', content);
+    
+    // Extract quiz ID from message: "Quiz 'name' (ID: quiz_id) has been deleted"
+    const match = content.match(/\(ID: ([a-zA-Z0-9_]+)\)/);
+    if (match) {
+        const quizId = match[1];
+        console.log('📝 Extracted quiz ID:', quizId);
+        console.log('📊 Active quizzes before deletion:', Array.from(activeQuizzes.keys()));
+        
+        // Remove from active quizzes
+        const wasInActive = activeQuizzes.delete(quizId);
+        console.log('🔴 Removed from activeQuizzes:', wasInActive);
+        
+        // Remove from invitations
+        const wasInInvitations = quizInvitations.delete(quizId);
+        console.log('🔴 Removed from invitations:', wasInInvitations);
+        
+        // Save to storage
+        saveQuizzesToStorage();
+        console.log('💾 Saved to storage. Remaining quizzes:', activeQuizzes.size);
+        
+        // Update UI - remove from quiz list
+        updateAvailableQuizzes();
+        console.log('🔄 Updated available quizzes UI');
+        
+        // Remove quiz list item from DOM
+        const quizListItem = document.getElementById('quiz-list-' + quizId);
+        if (quizListItem) {
+            quizListItem.remove();
+            console.log('🗑️ Removed quiz list item from DOM');
+        } else {
+            console.log('⚠️ Quiz list item not found in DOM');
+        }
+        
+        // Remove notification if exists
+        const notification = document.getElementById('quiz-notif-' + quizId);
+        if (notification) {
+            notification.remove();
+            console.log('🗑️ Removed notification from DOM');
+        }
+        
+        console.log('✅ Quiz deleted and removed from UI:', quizId);
+        console.log('📊 Active quizzes after deletion:', Array.from(activeQuizzes.keys()));
+    } else {
+        console.error('❌ Failed to extract quiz ID from deletion message:', content);
     }
 }
 

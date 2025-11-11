@@ -96,8 +96,17 @@ public class QuizManager {
      */
     public boolean joinQuiz(String quizId, String username) {
         Quiz quiz = activeQuizzes.get(quizId);
-        if (quiz == null || quiz.getState() != Quiz.QuizState.READY) {
+        // Allow joining quizzes in CREATED or READY state (before they start)
+        if (quiz == null || (quiz.getState() != Quiz.QuizState.CREATED && quiz.getState() != Quiz.QuizState.READY)) {
+            System.out.println("[QuizManager] Cannot join quiz " + quizId + " - Quiz state: " + 
+                (quiz != null ? quiz.getState() : "NULL"));
             return false;
+        }
+        
+        // If quiz is in CREATED state and has questions, move it to READY
+        if (quiz.getState() == Quiz.QuizState.CREATED && !quiz.getQuestions().isEmpty()) {
+            quiz.setState(Quiz.QuizState.READY);
+            System.out.println("[QuizManager] Quiz " + quizId + " state changed to READY");
         }
         
         quiz.addParticipant(username);
@@ -301,6 +310,19 @@ public class QuizManager {
      */
     public Quiz getQuiz(String quizId) {
         return activeQuizzes.get(quizId);
+    }
+    
+    /**
+     * Delete a quiz permanently
+     */
+    public boolean deleteQuiz(String quizId) {
+        Quiz quiz = activeQuizzes.remove(quizId);
+        if (quiz != null) {
+            System.out.println("[QuizManager] Quiz deleted: " + quizId + " (" + quiz.getQuizName() + ")");
+            return true;
+        }
+        System.out.println("[QuizManager] Failed to delete quiz - not found: " + quizId);
+        return false;
     }
     
     /**
