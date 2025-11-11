@@ -248,15 +248,17 @@ function sendMessage(message) {
     
     // If in private chat view, automatically send as private message
     if (chatView === 'private' && currentPrivateChat) {
+        const messageId = `msg_${Date.now()}_${Math.random()}`;
         messageObj = {
             type: 'PRIVATE_MSG',
             sender: username,
             receiver: currentPrivateChat,
-            content: message
+            content: message,
+            messageId: messageId
         };
         
-        // Add to local history immediately
-        addPrivateMessageToHistory(currentPrivateChat, message, username);
+        // Add to local history immediately with messageId
+        addPrivateMessageToHistory(currentPrivateChat, message, username, messageId);
     }
     // Handle different message types for public chat
     else if (message.startsWith('@')) {
@@ -265,15 +267,17 @@ function sendMessage(message) {
         if (spaceIndex > 0) {
             const receiver = message.substring(1, spaceIndex);
             const content = message.substring(spaceIndex + 1);
+            const messageId = `msg_${Date.now()}_${Math.random()}`;
             messageObj = {
                 type: 'PRIVATE_MSG',
                 sender: username,
                 receiver: receiver,
-                content: content
+                content: content,
+                messageId: messageId
             };
             
-            // Add to local history
-            addPrivateMessageToHistory(receiver, content, username);
+            // Add to local history with messageId
+            addPrivateMessageToHistory(receiver, content, username, messageId);
         } else {
             alert('Invalid private message format. Use: @username message');
             return;
@@ -338,7 +342,12 @@ function handleMessage(message) {
                 
                 // Add to private chat history if sent by the other user
                 if (message.sender !== username) {
-                    addPrivateMessageToHistory(otherUser, message.content, message.sender);
+                    addPrivateMessageToHistory(otherUser, message.content, message.sender, message.messageId);
+                    
+                    // Send delivery confirmation
+                    if (message.messageId) {
+                        sendPrivateMessageDelivered(message.messageId, otherUser);
+                    }
                 }
                 
                 // Only show in public chat if not in private chat view
@@ -376,6 +385,8 @@ function handleMessage(message) {
             try {
                 const statusData = JSON.parse(message.content);
                 updateMessageStatus(statusData.messageId, statusData.status);
+                // Also update private message status
+                updatePrivateMessageStatus(statusData.messageId, statusData.status);
             } catch (e) {
                 console.error('Failed to parse message status:', e);
             }
@@ -524,6 +535,11 @@ function stopTyping() {
 function addTypingUser(user) {
     typingUsers.add(user);
     updateTypingIndicator();
+    
+    // Update private chat typing indicator if in private chat with this user
+    if (chatView === 'private' && currentPrivateChat === user) {
+        updatePrivateTypingIndicator(user);
+    }
 }
 
 /**
@@ -532,6 +548,11 @@ function addTypingUser(user) {
 function removeTypingUser(user) {
     typingUsers.delete(user);
     updateTypingIndicator();
+    
+    // Update private chat typing indicator if in private chat with this user
+    if (chatView === 'private' && currentPrivateChat === user) {
+        updatePrivateTypingIndicator(user);
+    }
 }
 
 /**
@@ -862,28 +883,77 @@ function updatePrivateMessageArea(targetUser) {
     container.innerHTML = '';
     messages.forEach(msg => {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `private-message ${msg.sender === username ? 'sent' : 'received'}`;
+        // Use same class structure as public chat
+        messageDiv.className = `message ${msg.sender === username ? 'message-sent' : 'message-received'}`;
         
-        const messageBubble = document.createElement('div');
-        messageBubble.className = 'private-message-bubble';
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'message-sender';
+        senderDiv.textContent = msg.sender;
         
-        const messageContent = document.createElement('div');
-        messageContent.className = 'private-message-content';
-        messageContent.textContent = msg.content;
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = msg.content;
         
-        const messageTime = document.createElement('div');
-        messageTime.className = 'private-message-time';
-        messageTime.textContent = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Add timestamp
+        const timeDiv = document.createElement('span');
+        timeDiv.className = 'message-time';
+        const timestamp = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timeDiv.textContent = ` (${timestamp})`;
         
-        messageBubble.appendChild(messageContent);
-        messageBubble.appendChild(messageTime);
-        messageDiv.appendChild(messageBubble);
+        // Add status indicators for sent messages (like public chat)
+        if (msg.sender === username && msg.messageId) {
+            const statusDiv = document.createElement('span');
+            statusDiv.className = 'message-status';
+            statusDiv.setAttribute('data-message-id', msg.messageId);
+            updateStatusIcon(statusDiv, msg.status || 'SENT');
+            timeDiv.appendChild(statusDiv);
+        }
+        
+        senderDiv.appendChild(timeDiv);
+        messageDiv.appendChild(senderDiv);
+        messageDiv.appendChild(contentDiv);
         
         container.appendChild(messageDiv);
     });
     
+    // Add typing indicator if other user is typing
+    updatePrivateTypingIndicator(targetUser);
+    
     // Scroll to bottom
     container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Update typing indicator for private chat
+ */
+function updatePrivateTypingIndicator(targetUser) {
+    const container = document.getElementById('privateMessagesContainer');
+    if (!container) return;
+    
+    let typingIndicator = document.getElementById('privateTypingIndicator');
+    
+    // Check if the target user is typing
+    if (typingUsers.has(targetUser)) {
+        if (!typingIndicator) {
+            typingIndicator = document.createElement('div');
+            typingIndicator.id = 'privateTypingIndicator';
+            typingIndicator.className = 'typing-indicator';
+        }
+        
+        typingIndicator.innerHTML = `<em class="typing-text">${targetUser} is typing...</em>`;
+        typingIndicator.style.display = 'block';
+        
+        // Ensure it's at the bottom
+        if (typingIndicator.parentNode !== container) {
+            container.appendChild(typingIndicator);
+        }
+        
+        container.scrollTop = container.scrollHeight;
+    } else {
+        if (typingIndicator && typingIndicator.parentNode === container) {
+            typingIndicator.remove();
+        }
+    }
 }
 
 /**
@@ -895,6 +965,11 @@ function markPrivateChatAsRead(targetUser) {
         messages.forEach(msg => {
             if (msg.sender === targetUser) {
                 msg.read = true;
+                // Send seen confirmation for unread messages
+                if (msg.messageId && msg.status !== 'SEEN') {
+                    sendPrivateMessageSeen(msg.messageId, targetUser);
+                    msg.status = 'SEEN';
+                }
             }
         });
         // Persist change
@@ -905,18 +980,24 @@ function markPrivateChatAsRead(targetUser) {
 /**
  * Add private message to chat history
  */
-function addPrivateMessageToHistory(targetUser, message, sender) {
+function addPrivateMessageToHistory(targetUser, message, sender, messageId = null) {
     if (!privateChats.has(targetUser)) {
         privateChats.set(targetUser, []);
     }
     
     const chatMessages = privateChats.get(targetUser);
-    chatMessages.push({
+    const msgObj = {
         sender: sender,
         content: message,
         timestamp: new Date().toISOString(),
-        read: sender === username || chatView === 'private' && currentPrivateChat === targetUser
-    });
+        read: sender === username || (chatView === 'private' && currentPrivateChat === targetUser),
+        messageId: messageId || `private_${Date.now()}_${Math.random()}`,
+        status: sender === username ? 'SENT' : null,
+        deliveredTo: new Set(),
+        seenBy: new Set()
+    };
+    
+    chatMessages.push(msgObj);
     
     // Update display if this is the active chat
     if (chatView === 'private' && currentPrivateChat === targetUser) {
@@ -928,6 +1009,8 @@ function addPrivateMessageToHistory(targetUser, message, sender) {
 
     // Persist private chats
     savePrivateChatsToStorage();
+    
+    return msgObj;
 }
 
 /**
@@ -964,6 +1047,75 @@ function updateMessageStatus(messageId, status) {
         updateStatusIcon(statusElement, status);
         messageStatusMap.set(messageId, status);
         console.log(`Message ${messageId} status updated to ${status}`);
+    }
+}
+
+/**
+ * Update private message status
+ */
+function updatePrivateMessageStatus(messageId, status) {
+    // Find message in private chats and update status
+    let updated = false;
+    privateChats.forEach((messages, user) => {
+        messages.forEach(msg => {
+            if (msg.messageId === messageId) {
+                msg.status = status;
+                updated = true;
+            }
+        });
+    });
+    
+    if (updated) {
+        // Update display if in active private chat
+        if (chatView === 'private' && currentPrivateChat) {
+            updatePrivateMessageArea(currentPrivateChat);
+        }
+        // Persist changes
+        savePrivateChatsToStorage();
+    }
+    
+    // Also update DOM element if visible
+    const statusElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (statusElement) {
+        updateStatusIcon(statusElement, status);
+    }
+}
+
+/**
+ * Send private message delivery confirmation
+ */
+function sendPrivateMessageDelivered(messageId, fromUser) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({
+                type: 'MESSAGE_DELIVERED',
+                sender: username,
+                receiver: fromUser,
+                messageId: messageId
+            }));
+            console.log(`Sent delivery confirmation for private message ${messageId}`);
+        } catch (error) {
+            console.error('Failed to send private message delivery confirmation:', error);
+        }
+    }
+}
+
+/**
+ * Send private message seen confirmation
+ */
+function sendPrivateMessageSeen(messageId, fromUser) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({
+                type: 'MESSAGE_SEEN',
+                sender: username,
+                receiver: fromUser,
+                messageId: messageId
+            }));
+            console.log(`Sent seen confirmation for private message ${messageId}`);
+        } catch (error) {
+            console.error('Failed to send private message seen confirmation:', error);
+        }
     }
 }
 
