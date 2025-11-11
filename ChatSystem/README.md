@@ -1,5 +1,53 @@
 # ChatSystem - Network Programming Assignment
 
+## 🎯 Quiz Feature - Simple 4-Step Flow
+
+```
+    ┌──────────────────────────────────────────────────────┐
+    │                 ADMIN CREATES QUIZ                   │
+    └──────────────────────────────────────────────────────┘
+                            │
+                            ↓
+    ┌─────────────────────────────────────────────────────┐
+    │  STEP 1: Give Your Quiz a Name                      │
+    │  ➤ Type quiz name (e.g., "Science Quiz")            │
+    │  ➤ Click "Create Quiz & Continue"                   │
+    │  ✅ Auto-moves to Step 2                            │
+    └──────────────────┬──────────────────────────────────┘
+                       ↓
+    ┌─────────────────────────────────────────────────────┐
+    │  STEP 2: Make Questions                             │
+    │  ➤ Add question text                                │
+    │  ➤ Add 4 options (A, B, C, D)                       │
+    │  ➤ Mark correct answer                              │
+    │  ➤ Set time limit (default: 30 seconds)             │
+    │  ➤ Click "Add This Question" (repeat for more)      │
+    │  ➤ Click "Save Quiz & Invite Users"                 │
+    │  ✅ Auto-moves to Step 3                            │
+    └──────────────────┬──────────────────────────────────┘
+                       ↓
+    ┌─────────────────────────────────────────────────────┐
+    │  STEP 3: Send Invitations                           │
+    │  ➤ Type "all" for everyone OR                       │
+    │  ➤ Type specific names: "Alice, Bob, Charlie"       │
+    │  ➤ Click "Send Invitations"                         │
+    │  ➤ Click "Next: Start Quiz"                         │
+    │  ✅ Auto-moves to Step 4                            │
+    └──────────────────┬──────────────────────────────────┘
+                       ↓
+    ┌─────────────────────────────────────────────────────┐
+    │  STEP 4: Start Quiz                                 │
+    │  ➤ Review quiz details                              │
+    │  ➤ Click "Start Quiz Now"                           │
+    │  ✅ Quiz is ACTIVE - Users can join!                │
+    │  ➤ Click "End Quiz" when done                       │
+    └─────────────────────────────────────────────────────┘
+```
+
+**📖 See [QUIZ_FLOW_GUIDE.md](QUIZ_FLOW_GUIDE.md) for detailed instructions**
+
+---
+
 ## Project Title
 **Scalable Real-Time Chat and Notification System**
 

@@ -15,6 +15,12 @@ let isTyping = false; // Whether current user is typing
 let messageMap = new Map(); // Map of messageId to message element
 let messageStatusMap = new Map(); // Map of messageId to status
 let visibilityObserver = null; // Intersection Observer for message visibility
+
+// Quiz tracking variables
+let currentQuiz = null; // Currently active quiz
+let quizAnswers = new Map(); // Map of questionNumber to selectedOption
+let quizQuestions = []; // Array of quiz questions
+
 // Local Storage keys
 const STORAGE_KEYS = {
     MESSAGES: 'chatMessages',
@@ -369,14 +375,14 @@ function handleMessage(message) {
             
         case 'QUIZ_START':
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-start');
-            // Show quiz interface or notification
-            showQuizNotification('Quiz Started!', message.content);
+            // Parse and display quiz interface
+            parseAndDisplayQuiz(message.content);
             break;
             
         case 'QUIZ_QUESTION':
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-question');
-            // Highlight question in UI
-            showQuizQuestion(message.content);
+            // Add question to current quiz
+            addQuestionToQuiz(message.content);
             break;
             
         case 'QUIZ_RESULTS':
@@ -1077,6 +1083,41 @@ function showQuizQuestion(questionContent) {
 let activeQuizzes = new Map(); // Store active quizzes
 let quizInvitations = new Map(); // Store quiz invitations
 
+// Quiz localStorage keys
+const QUIZ_STORAGE_KEY = 'chatActiveQuizzes';
+
+/**
+ * Load active quizzes from localStorage
+ */
+function loadQuizzesFromStorage() {
+    try {
+        const savedQuizzes = localStorage.getItem(QUIZ_STORAGE_KEY);
+        if (savedQuizzes) {
+            const quizArray = JSON.parse(savedQuizzes);
+            activeQuizzes.clear();
+            quizArray.forEach(quiz => {
+                activeQuizzes.set(quiz.id, quiz);
+            });
+            console.log(`Loaded ${activeQuizzes.size} quizzes from storage`);
+            updateAvailableQuizzes();
+        }
+    } catch (error) {
+        console.error('Failed to load quizzes from storage:', error);
+    }
+}
+
+/**
+ * Save active quizzes to localStorage
+ */
+function saveQuizzesToStorage() {
+    try {
+        const quizArray = Array.from(activeQuizzes.values());
+        localStorage.setItem(QUIZ_STORAGE_KEY, JSON.stringify(quizArray));
+    } catch (error) {
+        console.error('Failed to save quizzes to storage:', error);
+    }
+}
+
 /**
  * Toggle quiz notification panel visibility
  */
@@ -1282,8 +1323,8 @@ function createQuizListItem(quiz, status) {
  * Parse quiz list from server response
  */
 function parseQuizList(content) {
-    // Clear existing quizzes
-    activeQuizzes.clear();
+    // Don't clear existing quizzes, merge with server data
+    const serverQuizzes = new Map();
     
     // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
     const lines = content.split('\n');
@@ -1296,7 +1337,7 @@ function parseQuizList(content) {
             const state = match[4].toLowerCase();
             const questionCount = parseInt(match[5]);
             
-            activeQuizzes.set(quizId, {
+            serverQuizzes.set(quizId, {
                 id: quizId,
                 name: quizName,
                 admin: adminName,
@@ -1306,8 +1347,14 @@ function parseQuizList(content) {
         }
     }
     
+    // Merge server quizzes with local quizzes
+    serverQuizzes.forEach((quiz, id) => {
+        activeQuizzes.set(id, quiz);
+    });
+    
+    saveQuizzesToStorage();
     updateAvailableQuizzes();
-    console.log(`Loaded ${activeQuizzes.size} active quizzes`);
+    console.log(`Loaded ${serverQuizzes.size} quizzes from server, total: ${activeQuizzes.size}`);
 }
 
 /**
@@ -1331,6 +1378,7 @@ function handleQuizMessage(message) {
                 questions: 0
             });
             
+            saveQuizzesToStorage();
             updateAvailableQuizzes();
         }
     }
@@ -1362,6 +1410,7 @@ function handleQuizMessage(message) {
             const quiz = activeQuizzes.get(quizId);
             if (quiz) {
                 quiz.status = 'running';
+                saveQuizzesToStorage();
                 updateAvailableQuizzes();
                 showQuizNotification(quizId, quizName, quiz.admin, 'running');
             }
@@ -1372,7 +1421,10 @@ function handleQuizMessage(message) {
 // Auto-refresh quiz list on connection
 const originalConnectFormSubmit = connectForm.onsubmit;
 connectForm.addEventListener('submit', (e) => {
-    // After connection is established, refresh quiz list
+    // Load quizzes from storage first
+    loadQuizzesFromStorage();
+    
+    // After connection is established, refresh quiz list from server
     setTimeout(() => {
         if (connected) {
             refreshQuizList();
@@ -1380,3 +1432,267 @@ connectForm.addEventListener('submit', (e) => {
     }, 2000);
 });
 
+/**
+ * Parse quiz start message and display quiz interface
+ */
+function parseAndDisplayQuiz(content) {
+    // Example format: "Quiz 'Quiz Name' has started! Questions: ..."
+    const match = content.match(/Quiz '(.+)' has started/);
+    if (match) {
+        const quizName = match[1];
+        currentQuiz = {
+            name: quizName,
+            questions: [],
+            startTime: new Date()
+        };
+        quizAnswers.clear();
+        quizQuestions = [];
+        
+        // Show chat interface
+        showChatInterface();
+        
+        // Display quiz header
+        displayQuizInterface(quizName);
+    }
+}
+
+/**
+ * Add a question to the current quiz
+ */
+function addQuestionToQuiz(content) {
+    // Parse question format: "Question 1: What is...? Options: A) ..., B) ..., C) ..., D) ..."
+    const questionMatch = content.match(/Question (\d+): (.+?)\? Options: (.+)/);
+    if (questionMatch && currentQuiz) {
+        const questionNum = parseInt(questionMatch[1]);
+        const questionText = questionMatch[2];
+        const optionsText = questionMatch[3];
+        
+        // Parse options
+        const options = [];
+        const optionMatches = optionsText.matchAll(/([A-D])\) ([^,]+)/g);
+        for (const match of optionMatches) {
+            options.push({
+                letter: match[1],
+                text: match[2].trim()
+            });
+        }
+        
+        const question = {
+            number: questionNum,
+            text: questionText,
+            options: options
+        };
+        
+        quizQuestions.push(question);
+        currentQuiz.questions.push(question);
+        
+        // Update quiz interface
+        updateQuizInterface();
+    }
+}
+
+/**
+ * Display quiz interface in the message area
+ */
+function displayQuizInterface(quizName) {
+    const messageArea = document.getElementById('messageArea');
+    
+    // Create quiz container
+    const quizContainer = document.createElement('div');
+    quizContainer.id = 'activeQuizContainer';
+    quizContainer.className = 'active-quiz-container';
+    
+    quizContainer.innerHTML = `
+        <div class="quiz-header-display">
+            <div class="quiz-icon">📝</div>
+            <div class="quiz-title-display">
+                <h2>${quizName}</h2>
+                <p class="quiz-subtitle">Select your answers and submit when ready</p>
+            </div>
+        </div>
+        <div id="quizQuestionsContainer" class="quiz-questions-container">
+            <div class="quiz-loading">
+                <span class="loading-spinner">⏳</span>
+                <p>Loading questions...</p>
+            </div>
+        </div>
+        <div class="quiz-footer">
+            <button id="submitQuizBtn" class="btn-submit-quiz" onclick="submitQuiz()" disabled>
+                <span>📤</span> Submit Quiz
+            </button>
+            <button class="btn-cancel-quiz" onclick="cancelQuiz()">
+                <span>❌</span> Cancel
+            </button>
+        </div>
+    `;
+    
+    messageArea.innerHTML = '';
+    messageArea.appendChild(quizContainer);
+}
+
+/**
+ * Update quiz interface with questions
+ */
+function updateQuizInterface() {
+    const container = document.getElementById('quizQuestionsContainer');
+    if (!container || quizQuestions.length === 0) return;
+    
+    container.innerHTML = '';
+    
+    quizQuestions.forEach((question, index) => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'quiz-question-card';
+        questionDiv.id = `question-${question.number}`;
+        
+        let optionsHTML = '';
+        question.options.forEach(option => {
+            const isSelected = quizAnswers.get(question.number) === option.letter;
+            optionsHTML += `
+                <label class="quiz-option ${isSelected ? 'selected' : ''}">
+                    <input type="radio" 
+                           name="question${question.number}" 
+                           value="${option.letter}"
+                           ${isSelected ? 'checked' : ''}
+                           onchange="selectQuizOption(${question.number}, '${option.letter}')">
+                    <span class="option-marker">${option.letter}</span>
+                    <span class="option-text">${option.text}</span>
+                    <span class="check-icon">✓</span>
+                </label>
+            `;
+        });
+        
+        questionDiv.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Question ${question.number}</span>
+                <span class="question-status ${quizAnswers.has(question.number) ? 'answered' : 'unanswered'}">
+                    ${quizAnswers.has(question.number) ? '✓ Answered' : '⚪ Not Answered'}
+                </span>
+            </div>
+            <div class="question-text">${question.text}?</div>
+            <div class="question-options">
+                ${optionsHTML}
+            </div>
+        `;
+        
+        container.appendChild(questionDiv);
+    });
+    
+    // Update submit button state
+    updateSubmitButton();
+}
+
+/**
+ * Select an option for a question
+ */
+function selectQuizOption(questionNumber, option) {
+    quizAnswers.set(questionNumber, option);
+    updateQuizInterface();
+}
+
+/**
+ * Update submit button state
+ */
+function updateSubmitButton() {
+    const submitBtn = document.getElementById('submitQuizBtn');
+    if (!submitBtn) return;
+    
+    const allAnswered = quizQuestions.length > 0 && 
+                       quizQuestions.every(q => quizAnswers.has(q.number));
+    
+    submitBtn.disabled = !allAnswered;
+    
+    if (allAnswered) {
+        submitBtn.classList.add('ready');
+        submitBtn.innerHTML = `<span>✅</span> Submit Quiz (${quizAnswers.size}/${quizQuestions.length})`;
+    } else {
+        submitBtn.classList.remove('ready');
+        submitBtn.innerHTML = `<span>📤</span> Submit Quiz (${quizAnswers.size}/${quizQuestions.length})`;
+    }
+}
+
+/**
+ * Submit quiz answers
+ */
+function submitQuiz() {
+    if (!currentQuiz || quizAnswers.size === 0) {
+        alert('Please answer all questions before submitting.');
+        return;
+    }
+    
+    // Check if all questions are answered
+    const allAnswered = quizQuestions.every(q => quizAnswers.has(q.number));
+    if (!allAnswered) {
+        alert('Please answer all questions before submitting.');
+        return;
+    }
+    
+    // Build answer string for each question
+    const answers = [];
+    quizQuestions.forEach(question => {
+        const answer = quizAnswers.get(question.number);
+        answers.push(`/answer ${currentQuiz.name} ${question.number} ${answer}`);
+    });
+    
+    // Send all answers
+    answers.forEach(answerCmd => {
+        sendMessage(answerCmd);
+    });
+    
+    // Show confirmation
+    const container = document.getElementById('activeQuizContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="quiz-submitted">
+                <div class="success-icon">✅</div>
+                <h2>Quiz Submitted!</h2>
+                <p>Your answers have been submitted successfully.</p>
+                <p>Total questions answered: ${quizAnswers.size}</p>
+                <button class="btn-back-to-chat" onclick="backToChat()">
+                    <span>💬</span> Back to Chat
+                </button>
+            </div>
+        `;
+    }
+    
+    // Clear quiz data
+    setTimeout(() => {
+        currentQuiz = null;
+        quizAnswers.clear();
+        quizQuestions = [];
+    }, 1000);
+}
+
+/**
+ * Cancel quiz
+ */
+function cancelQuiz() {
+    if (confirm('Are you sure you want to cancel this quiz? Your answers will be lost.')) {
+        currentQuiz = null;
+        quizAnswers.clear();
+        quizQuestions = [];
+        
+        backToChat();
+    }
+}
+
+/**
+ * Return to chat interface
+ */
+function backToChat() {
+    const messageArea = document.getElementById('messageArea');
+    const container = document.getElementById('activeQuizContainer');
+    
+    if (container) {
+        container.remove();
+    }
+    
+    // Restore message area
+    messageArea.innerHTML = '';
+    loadMessagesFromStorage();
+}
+
+// Initialize - Load quizzes from storage on page load
+window.addEventListener('DOMContentLoaded', () => {
+    console.log('Chat client loaded');
+    loadQuizzesFromStorage();
+});
