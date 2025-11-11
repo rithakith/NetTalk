@@ -377,14 +377,16 @@ function handleMessage(message) {
             
         case 'QUIZ_START':
             console.log('[WebSocket] Received QUIZ_START message:', message.content);
-            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-start');
+            // Don't add to chat - quiz interface will be displayed
+            // addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-start');
             // Parse and display quiz interface
             parseAndDisplayQuiz(message.content);
             break;
             
         case 'QUIZ_QUESTION':
             console.log('[WebSocket] Received QUIZ_QUESTION message:', message.content);
-            addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-question');
+            // Don't add to chat - questions should only appear in quiz interface
+            // addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-question');
             // Add question to current quiz
             addQuestionToQuiz(message.content);
             break;
@@ -1581,10 +1583,17 @@ function parseAndDisplayQuiz(content) {
             }
         }
         
+        // Get quiz info including total question count
+        const quizInfo = activeQuizzes.get(joinedQuizId);
+        const totalQuestions = quizInfo ? quizInfo.questions : 0;
+        
+        console.log('[Quiz] Total questions in quiz:', totalQuestions);
+        
         currentQuiz = {
             id: joinedQuizId,
             name: quizName,
             questions: [],
+            totalQuestions: totalQuestions,  // Store total question count
             startTime: new Date()
         };
         quizAnswers.clear();
@@ -1709,6 +1718,11 @@ function displayQuizInterface(quizName) {
     
     console.log('[Quiz] Creating quiz container...');
     
+    // Get total questions if available
+    const totalQs = currentQuiz && currentQuiz.totalQuestions > 0 
+        ? currentQuiz.totalQuestions 
+        : '?';
+    
     // Create quiz container
     const quizContainer = document.createElement('div');
     quizContainer.id = 'activeQuizContainer';
@@ -1719,7 +1733,7 @@ function displayQuizInterface(quizName) {
             <div class="quiz-icon">📝</div>
             <div class="quiz-title-display">
                 <h2>${quizName}</h2>
-                <p class="quiz-subtitle">Select your answers and submit when ready</p>
+                <p class="quiz-subtitle">Select your answers and submit when ready • ${totalQs} question${totalQs !== 1 && totalQs !== '?' ? 's' : ''}</p>
             </div>
         </div>
         <div id="quizQuestionsContainer" class="quiz-questions-container">
@@ -1779,8 +1793,11 @@ function updateQuizInterface() {
         questionDiv.className = 'quiz-question-card';
         questionDiv.id = `question-${question.number}`;
         
+        console.log('[Quiz] Question', question.number, 'options:', question.options);
+        
         let optionsHTML = '';
         question.options.forEach(option => {
+            console.log('[Quiz] Adding option:', option.letter, '-', option.text);
             const isSelected = quizAnswers.get(question.number) === (option.letter.charCodeAt(0) - 65); // A=0, B=1, C=2, D=3
             optionsHTML += `
                 <label class="quiz-option ${isSelected ? 'selected' : ''}">
@@ -1795,6 +1812,8 @@ function updateQuizInterface() {
                 </label>
             `;
         });
+        
+        console.log('[Quiz] Options HTML for question', question.number, ':', optionsHTML.length, 'chars');
         
         questionDiv.innerHTML = `
             <div class="question-header">
@@ -1851,18 +1870,26 @@ function updateSubmitButton() {
     const submitBtn = document.getElementById('submitQuizBtn');
     if (!submitBtn) return;
     
+    // Use total questions if available, otherwise use received questions
+    const expectedQuestions = currentQuiz && currentQuiz.totalQuestions > 0 
+        ? currentQuiz.totalQuestions 
+        : quizQuestions.length;
+    
     const allAnswered = quizQuestions.length > 0 && 
+                       quizQuestions.length >= expectedQuestions &&
                        quizQuestions.every(q => quizAnswers.has(q.number));
     
     submitBtn.disabled = !allAnswered;
     
     if (allAnswered) {
         submitBtn.classList.add('ready');
-        submitBtn.innerHTML = `<span>✅</span> Submit Quiz (${quizAnswers.size}/${quizQuestions.length})`;
+        submitBtn.innerHTML = `<span>✅</span> Submit Quiz (${quizAnswers.size}/${expectedQuestions})`;
     } else {
         submitBtn.classList.remove('ready');
-        submitBtn.innerHTML = `<span>📤</span> Submit Quiz (${quizAnswers.size}/${quizQuestions.length})`;
+        submitBtn.innerHTML = `<span>📤</span> Submit Quiz (${quizAnswers.size}/${expectedQuestions})`;
     }
+    
+    console.log('[Quiz] Submit button updated - Answered:', quizAnswers.size, 'Expected:', expectedQuestions, 'Enabled:', allAnswered);
 }
 
 /**
