@@ -339,10 +339,19 @@ function handleMessage(message) {
         case 'USER_LIST':
             if (message.content) {
                 try {
-                    const users = JSON.parse(message.content);
+                    // Parse "Online users: user1, user2, user3" format
+                    let users = [];
+                    if (message.content.startsWith('Online users: ')) {
+                        const userListStr = message.content.replace('Online users: ', '');
+                        users = userListStr.split(', ').filter(u => u.trim().length > 0);
+                    } else {
+                        // Try parsing as JSON (for future compatibility)
+                        users = JSON.parse(message.content);
+                    }
                     updateUserList(users);
                 } catch (e) {
                     console.error('Failed to parse user list:', e);
+                    console.log('Raw content:', message.content);
                 }
             }
             break;
