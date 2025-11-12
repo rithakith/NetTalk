@@ -3,27 +3,26 @@ echo ===============================================
 echo   NetTalk Quiz System - Complete Startup
 echo ===============================================
 
-cd /d "c:\PERSONAL\Projects\Network Project\NetTalk\ChatSystem"
+REM Compile if needed
+if not exist out\com\chatapp\server\ChatServer.class (
+    echo Compiling Java files...
+    javac -cp "lib\*" -d out src\main\java\com\chatapp\api\ExternalApiClient.java src\main\java\com\chatapp\client\ChatClient.java src\main\java\com\chatapp\common\Message.java src\main\java\com\chatapp\quiz\Quiz.java src\main\java\com\chatapp\quiz\QuizManager.java src\main\java\com\chatapp\quiz\QuizParticipant.java src\main\java\com\chatapp\quiz\QuizQuestion.java src\main\java\com\chatapp\quiz\QuizResult.java src\main\java\com\chatapp\server\AdminWebSocketServer.java src\main\java\com\chatapp\server\ChatServer.java src\main\java\com\chatapp\server\ClientHandler.java src\main\java\com\chatapp\server\ConnectionListener.java src\main\java\com\chatapp\server\MessageBroadcaster.java src\main\java\com\chatapp\server\MessageTracker.java src\main\java\com\chatapp\server\SimpleWebServer.java src\main\java\com\chatapp\server\UserManager.java src\main\java\com\chatapp\server\WebSocketBridgeServer.java
+)
 
 echo.
 echo [1/3] Starting ChatServer on port 8888...
-start "ChatServer" cmd /k "java com.chatapp.server.ChatServer"
+start "ChatServer" cmd /k "java -cp out;lib\* com.chatapp.server.ChatServer"
 
 echo.
 echo [2/3] Waiting 3 seconds for ChatServer to initialize...
 timeout /t 3 /nobreak > nul
 
 echo.
-echo [3/4] Starting WebSocket Bridge on port 8889...
-start "WebSocket Bridge" cmd /k ".\run-websocket-server.bat"
+echo [3/3] Starting WebSocket Bridge on port 8889 (for both users and admin)...
+start "WebSocket Bridge" cmd /k "java -cp out;lib\Java-WebSocket-1.5.3.jar;lib\gson-2.8.9.jar;lib\slf4j-api-1.7.36.jar;lib\slf4j-simple-1.7.36.jar com.chatapp.server.WebSocketBridgeServer"
 
 echo.
-echo [4/5] Starting Admin WebSocket Server on port 8890...
-timeout /t 2 /nobreak > nul
-start "Admin WebSocket" cmd /k ".\run-admin-websocket-server.bat"
-
-echo.
-echo [5/5] Opening web interfaces...
+echo [4/4] Opening web interfaces...
 timeout /t 2 /nobreak > nul
 start "" "frontend/index.html"
 start "" "frontend/admin.html"
@@ -35,8 +34,7 @@ echo ===============================================
 echo.
 echo Servers running:
 echo   🟢 ChatServer: http://localhost:8888
-echo   🟢 WebSocket Bridge: ws://localhost:8889
-echo   👑 Admin WebSocket: ws://localhost:8890
+echo   🟢 WebSocket Bridge: ws://localhost:8889 (Admin + Users)
 echo.
 echo Web Interfaces:
 echo   🌐 Main Chat: frontend/index.html

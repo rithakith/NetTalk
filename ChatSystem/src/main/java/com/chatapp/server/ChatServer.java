@@ -1,15 +1,15 @@
 package com.chatapp.server;
 
-import com.chatapp.common.Message;
 import com.chatapp.api.ExternalApiClient;
-import com.chatapp.quiz.QuizManager;
+import com.chatapp.common.Message;
 import com.chatapp.quiz.Quiz;
+import com.chatapp.quiz.QuizManager;
 import com.chatapp.quiz.QuizQuestion;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.List;
 
 /**
  * Main Chat Server - Integrates all components from all 5 members
@@ -81,22 +81,34 @@ public class ChatServer {
                 Message startMsg = new Message(Message.MessageType.QUIZ_START, "Server",
                     "Quiz '" + quiz.getQuizName() + "' has started! Get ready!");
                 broadcastToParticipants(quiz, startMsg);
+                
+                // Small delay to ensure start message is processed first
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
             
             @Override
             public void onQuizQuestionChanged(Quiz quiz, QuizQuestion question) {
                 System.out.println("[QuizEvents] New question for quiz: " + quiz.getQuizId());
-                // Send current question to all participants
-                String questionMsg = "Question " + (quiz.getCurrentQuestionIndex() + 1) + ":\n" +
-                                   question.getQuestionText() + "\n";
-                for (int i = 0; i < question.getOptions().length; i++) {
-                    questionMsg += (i + 1) + ". " + question.getOptions()[i] + "\n";
+                // Send current question to all participants in format expected by frontend
+                // Format: "Question 1: What is...? Options: A) Option1, B) Option2, C) Option3, D) Option4"
+                String questionMsg = "Question " + (quiz.getCurrentQuestionIndex() + 1) + ": " +
+                                   question.getQuestionText() + "? Options: ";
+                
+                String[] options = question.getOptions();
+                char[] letters = {'A', 'B', 'C', 'D'};
+                for (int i = 0; i < options.length && i < 4; i++) {
+                    if (i > 0) questionMsg += ", ";
+                    questionMsg += letters[i] + ") " + options[i];
                 }
-                questionMsg += "Time limit: " + question.getTimeLimit() + " seconds\n";
-                questionMsg += "Use /answer " + quiz.getQuizId() + " <option_number> to submit your answer";
                 
                 Message qMsg = new Message(Message.MessageType.QUIZ_QUESTION, "Server", questionMsg);
                 broadcastToParticipants(quiz, qMsg);
+                
+                System.out.println("[QuizEvents] Question sent: " + questionMsg);
             }
             
             @Override
@@ -136,12 +148,14 @@ public class ChatServer {
      * Broadcast message to all quiz participants
      */
     private void broadcastToParticipants(Quiz quiz, Message message) {
-        for (String participantName : quiz.getParticipants().keySet()) {
-            ClientHandler handler = userManager.getUserHandler(participantName);
-            if (handler != null) {
-                handler.sendMessage(message);
-            }
-        }
+        System.out.println("[ChatServer] Broadcasting quiz message to participants: " + message.getType());
+        System.out.println("[ChatServer] Participants: " + quiz.getParticipants().keySet());
+        
+        // Broadcast to ALL users so WebSocket clients receive it
+        // The quiz participants will filter and handle it on the client side
+        broadcastMessage(message);
+        
+        System.out.println("[ChatServer] Quiz message broadcasted to all users");
     }
     
     /**
@@ -221,6 +235,10 @@ public class ChatServer {
      * Broadcast message to all connected clients
      */
     public void broadcastMessage(Message message) {
+        System.out.println("[ChatServer] Broadcasting message - Type: " + message.getType() + 
+                         ", Sender: " + message.getSender() + 
+                         ", Content: " + message.getContent());
+        
         // Add to chat history (Member 4's thread-safe operation)
         if (message.getType() == Message.MessageType.CHAT) {
             userManager.addToChatHistory(message);
@@ -230,7 +248,10 @@ public class ChatServer {
         }
         
         // Send to all clients and mark as delivered
+        int handlerCount = 0;
         for (ClientHandler handler : userManager.getAllHandlers()) {
+            handlerCount++;
+            System.out.println("[ChatServer] Sending to user: " + handler.getUsername() + " (handler #" + handlerCount + ")");
             handler.sendMessage(message);
             
             // Mark as delivered to each user (excluding sender)
@@ -240,7 +261,7 @@ public class ChatServer {
             }
         }
         
-        System.out.println("[ChatServer] Broadcasted: " + message.getSender() + ": " + message.getContent());
+        System.out.println("[ChatServer] Broadcast complete - Sent to " + handlerCount + " handlers");
     }
     
     /**
@@ -452,22 +473,46 @@ public class ChatServer {
             }
             
             int invitedCount = 0;
-            for (String username : usernames) {
-                username = username.trim();
-                ClientHandler userHandler = userManager.getUserHandler(username);
-                if (userHandler != null) {
-                    Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
-                        "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
-                        "Type /joinquiz " + quizId + " to participate!");
-                    userHandler.sendMessage(invitation);
-                    invitedCount++;
-                } else {
-                    System.out.println("[ChatServer] User not found for quiz invitation: " + username);
+            
+            // Check if inviting "all" users
+            if (usernames.length == 1 && usernames[0].trim().equalsIgnoreCase("all")) {
+                // Get all online users except the admin
+                List<String> allUsers = userManager.getActiveUsernames();
+                for (String user : allUsers) {
+                    if (!user.equals(adminUsername)) {  // Don't invite the admin
+                        ClientHandler userHandler = userManager.getUserHandler(user);
+                        if (userHandler != null) {
+                            Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
+                                "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
+                                "Type /joinquiz " + quizId + " to participate!");
+                            userHandler.sendMessage(invitation);
+                            invitedCount++;
+                        }
+                    }
+                }
+            } else {
+                // Invite specific users
+                for (String username : usernames) {
+                    username = username.trim();
+                    if (!username.isEmpty()) {
+                        ClientHandler userHandler = userManager.getUserHandler(username);
+                        if (userHandler != null) {
+                            Message invitation = new Message(Message.MessageType.QUIZ_INVITATION, adminUsername,
+                                "You've been invited to join quiz '" + quiz.getQuizName() + "' (ID: " + quizId + ")\n" +
+                                "Type /joinquiz " + quizId + " to participate!");
+                            userHandler.sendMessage(invitation);
+                            invitedCount++;
+                        } else {
+                            System.out.println("[ChatServer] User not found for quiz invitation: " + username);
+                        }
+                    }
                 }
             }
             
-            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
-                "Sent invitations to " + invitedCount + " users for quiz " + quizId));
+            String invitationMessage = invitedCount > 0 
+                ? "Sent invitations to " + invitedCount + " user(s) for quiz '" + quiz.getQuizName() + "'"
+                : "No users found to invite. Make sure users are online.";
+            sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server", invitationMessage));
                 
         } catch (Exception e) {
             Message error = new Message(Message.MessageType.SYSTEM, "Server",
@@ -499,6 +544,54 @@ public class ChatServer {
         } catch (Exception e) {
             Message error = new Message(Message.MessageType.SYSTEM, "Server",
                 "Failed to start quiz: " + e.getMessage());
+            sender.sendMessage(error);
+        }
+    }
+
+    /**
+     * Handle delete quiz command
+     */
+    public void handleDeleteQuiz(String quizId, String username, ClientHandler sender) {
+        try {
+            Quiz quiz = quizManager.getQuiz(quizId);
+            
+            if (quiz == null) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz not found: " + quizId));
+                return;
+            }
+            
+            // Check if user is the admin
+            if (!quiz.getAdminUsername().equals(username)) {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Only the quiz admin can delete this quiz."));
+                return;
+            }
+            
+            String quizName = quiz.getQuizName();
+            
+            // Delete the quiz
+            boolean success = quizManager.deleteQuiz(quizId);
+            
+            if (success) {
+                // Notify admin
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Quiz '" + quizName + "' (ID: " + quizId + ") has been deleted permanently."));
+                
+                // Broadcast deletion to all connected users
+                Message deleteNotification = new Message(Message.MessageType.QUIZ_DELETED, "Server",
+                    "Quiz '" + quizName + "' (ID: " + quizId + ") has been deleted by the admin.");
+                broadcastMessage(deleteNotification);
+                
+                System.out.println("[ChatServer] Quiz deleted: " + quizId + " by " + username + " - broadcasted to all users");
+            } else {
+                sender.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Failed to delete quiz: " + quizId));
+            }
+            
+        } catch (Exception e) {
+            Message error = new Message(Message.MessageType.SYSTEM, "Server",
+                "Failed to delete quiz: " + e.getMessage());
             sender.sendMessage(error);
         }
     }
