@@ -1,6 +1,19 @@
+// ----------------------
+// GLOBAL VARIABLES
+// ----------------------
 let currentAuthWs = null;
 let chatWs = null;
 let currentUser = null;
+let typingUsers = new Set();
+let typingTimeout = null;
+let reconnectTimer = null;
+
+const STORAGE_KEYS = {
+  username: "chat_username",
+  session: "chat_session",
+  messages: "chat_messages",
+};
+const MAX_MESSAGES = 100;
 
 // ----------------------
 // STEP 1: AUTH (LOGIN + REGISTER)
@@ -20,14 +33,13 @@ function handleAuth(authType) {
     return;
   }
 
-  // Connect to WebSocket Auth Server (port 8889)
   currentAuthWs = new WebSocket("ws://localhost:8889");
 
   currentAuthWs.onopen = () => {
-    console.log(`[Auth] Sending ${authType} for user: ${username}`);
+    console.log(`[Auth] ${authType} as ${username}`);
     currentAuthWs.send(
       JSON.stringify({
-        type: authType, // 'REGISTER' or 'LOGIN'
+        type: authType,
         sender: username,
         content: password,
       })
@@ -36,88 +48,92 @@ function handleAuth(authType) {
 
   currentAuthWs.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    console.log("[Auth Response]", data);
-
     if (data.type === "AUTH_RESPONSE") {
       alert(data.content);
-
       if (data.content.includes("SUCCESS")) {
-        // Save current user and move to chat panel
         currentUser = username;
+        localStorage.setItem(STORAGE_KEYS.username, username);
         document.getElementById("authPanel").style.display = "none";
         document.getElementById("chatPanel").style.display = "block";
         document.getElementById("currentUsername").innerText = username;
-
-        // Now connect to chat server via WebSocket bridge
         connectToChatServer(username);
       }
     }
   };
 
-  currentAuthWs.onerror = (err) => {
-    console.error("[Auth] WebSocket error:", err);
-    alert("Connection error during authentication");
-  };
+  currentAuthWs.onerror = () => alert("Auth server not reachable");
 }
 
 // ----------------------
-// STEP 2: CONNECT TO CHAT
+// STEP 2: CONNECT TO CHAT SERVER
 // ----------------------
 function connectToChatServer(username) {
   chatWs = new WebSocket("ws://localhost:8889");
 
   chatWs.onopen = () => {
     console.log(`[Chat] Connected as ${username}`);
-    chatWs.send(
-      JSON.stringify({
-        type: "JOIN",
-        sender: username,
-        content: "Joined the chat",
-      })
-    );
+    sendJson({ type: "JOIN", sender: username, content: "Joined chat" });
+    restoreMessages();
   };
 
   chatWs.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    console.log("[Chat Message]", data);
-
-    const messageArea = document.getElementById("messageArea");
-
-    if (data.type === "USER_LIST") {
-      updateUserList(data.content.split(","));
-    } else if (data.type === "MESSAGE" || data.type === "PRIVATE_MESSAGE") {
-      const messageDiv = document.createElement("div");
-      messageDiv.classList.add(
-        "message",
-        data.sender === currentUser ? "own-message" : "other-message"
-      );
-      messageDiv.innerHTML = `<strong>${data.sender}:</strong> ${data.content}`;
-      messageArea.appendChild(messageDiv);
-      messageArea.scrollTop = messageArea.scrollHeight;
-    } else if (data.type === "FILE") {
-      const fileDiv = document.createElement("div");
-      fileDiv.classList.add("file-message");
-      fileDiv.innerHTML = `<strong>${data.sender}</strong> sent a file: <a href="${data.content}" target="_blank">Download</a>`;
-      messageArea.appendChild(fileDiv);
-    } else if (data.type === "SERVER_INFO") {
-      const infoDiv = document.createElement("div");
-      infoDiv.classList.add("server-message");
-      infoDiv.textContent = data.content;
-      messageArea.appendChild(infoDiv);
-    }
+    handleChatMessage(data);
   };
 
   chatWs.onclose = () => {
-    console.log("[Chat] Disconnected from chat server");
+    console.log("[Chat] Disconnected");
+    tryReconnect(username);
   };
 
   chatWs.onerror = (err) => {
-    console.error("[Chat] WebSocket error:", err);
+    console.error("[Chat] Error", err);
   };
 }
 
 // ----------------------
-// STEP 3: MESSAGE SENDING
+// STEP 3: MESSAGE HANDLING
+// ----------------------
+function handleChatMessage(data) {
+  const messageArea = document.getElementById("messageArea");
+
+  switch (data.type) {
+    case "USER_LIST":
+      updateUserList(data.content.split(","));
+      break;
+
+    case "MESSAGE":
+    case "PRIVATE_MESSAGE":
+      displayMessage(data.sender, data.content, data.type);
+      saveMessage(data);
+      break;
+
+    case "FILE":
+      displayFileMessage(data.sender, data.filename, data.content);
+      saveMessage(data);
+      break;
+
+    case "TYPING_START":
+      showTyping(data.sender);
+      break;
+
+    case "TYPING_STOP":
+      hideTyping(data.sender);
+      break;
+
+    case "SERVER_INFO":
+      displayServerInfo(data.content);
+      break;
+
+    default:
+      console.log("[Unknown message]", data);
+  }
+
+  messageArea.scrollTop = messageArea.scrollHeight;
+}
+
+// ----------------------
+// STEP 4: MESSAGE SENDING
 // ----------------------
 const messageForm = document.getElementById("messageForm");
 const messageInput = document.getElementById("messageInput");
@@ -127,18 +143,17 @@ messageForm.addEventListener("submit", (e) => {
   const message = messageInput.value.trim();
   if (!message) return;
 
-  chatWs.send(
-    JSON.stringify({
-      type: "MESSAGE",
-      sender: currentUser,
-      content: message,
-    })
-  );
+  sendJson({
+    type: "MESSAGE",
+    sender: currentUser,
+    content: message,
+  });
   messageInput.value = "";
+  sendTypingStop();
 });
 
 // ----------------------
-// STEP 4: FILE UPLOAD
+// STEP 5: FILE UPLOAD
 // ----------------------
 const fileBtn = document.getElementById("fileBtn");
 const fileInput = document.getElementById("fileInput");
@@ -148,58 +163,151 @@ fileBtn.onclick = () => fileInput.click();
 fileInput.onchange = () => {
   const file = fileInput.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = () => {
-    chatWs.send(
-      JSON.stringify({
-        type: "FILE",
-        sender: currentUser,
-        content: reader.result,
-        filename: file.name,
-      })
-    );
+    sendJson({
+      type: "FILE",
+      sender: currentUser,
+      filename: file.name,
+      content: reader.result,
+    });
   };
   reader.readAsDataURL(file);
 };
 
 // ----------------------
-// STEP 5: DISCONNECT
+// STEP 6: DISCONNECT
 // ----------------------
 document.getElementById("disconnectBtn").onclick = () => {
-  if (chatWs && chatWs.readyState === WebSocket.OPEN) {
-    chatWs.close();
-    alert("You have disconnected from the chat.");
-    document.getElementById("chatPanel").style.display = "none";
-    document.getElementById("authPanel").style.display = "block";
-  }
+  if (chatWs && chatWs.readyState === WebSocket.OPEN) chatWs.close();
+  alert("You disconnected.");
+  document.getElementById("chatPanel").style.display = "none";
+  document.getElementById("authPanel").style.display = "block";
 };
 
 // ----------------------
-// STEP 6: USER LIST UPDATE
+// STEP 7: USER LIST
 // ----------------------
 function updateUserList(users) {
   const userList = document.getElementById("userList");
   userList.innerHTML = "";
-  users.forEach((user) => {
+  users.forEach((u) => {
     const li = document.createElement("li");
-    li.textContent = user;
+    li.textContent = u;
     userList.appendChild(li);
   });
 }
 
 // ----------------------
-// STEP 7: API BUTTONS
+// STEP 8: API COMMAND BUTTONS
 // ----------------------
 document.querySelectorAll(".btn-api").forEach((btn) => {
-  btn.onclick = () => {
-    const cmd = btn.getAttribute("data-cmd");
-    chatWs.send(
-      JSON.stringify({
-        type: "MESSAGE",
-        sender: currentUser,
-        content: cmd,
-      })
-    );
-  };
+  btn.onclick = () =>
+    sendJson({
+      type: "MESSAGE",
+      sender: currentUser,
+      content: btn.dataset.cmd,
+    });
 });
+
+// ----------------------
+// STEP 9: TYPING EVENTS
+// ----------------------
+messageInput.addEventListener("input", () => {
+  sendTypingStart();
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(sendTypingStop, 1500);
+});
+
+function sendTypingStart() {
+  sendJson({ type: "TYPING_START", sender: currentUser });
+}
+function sendTypingStop() {
+  sendJson({ type: "TYPING_STOP", sender: currentUser });
+}
+
+function showTyping(user) {
+  if (user === currentUser) return;
+  typingUsers.add(user);
+  updateTypingDisplay();
+}
+
+function hideTyping(user) {
+  typingUsers.delete(user);
+  updateTypingDisplay();
+}
+
+function updateTypingDisplay() {
+  const typingDiv = document.getElementById("typingIndicator") || createTypingIndicator();
+  typingDiv.textContent =
+    typingUsers.size > 0
+      ? `${Array.from(typingUsers).join(", ")} typing...`
+      : "";
+}
+
+function createTypingIndicator() {
+  const div = document.createElement("div");
+  div.id = "typingIndicator";
+  div.className = "typing-indicator";
+  document.getElementById("messageArea").appendChild(div);
+  return div;
+}
+
+// ----------------------
+// STEP 10: LOCAL STORAGE
+// ----------------------
+function saveMessage(data) {
+  const messages = JSON.parse(localStorage.getItem(STORAGE_KEYS.messages) || "[]");
+  messages.push(data);
+  if (messages.length > MAX_MESSAGES) messages.shift();
+  localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
+}
+
+function restoreMessages() {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.messages) || "[]");
+  saved.forEach((m) => displayMessage(m.sender, m.content, m.type));
+}
+
+function displayMessage(sender, content, type) {
+  const div = document.createElement("div");
+  div.className = sender === currentUser ? "own-message" : "other-message";
+  div.innerHTML = `<strong>${sender}:</strong> ${content}`;
+  document.getElementById("messageArea").appendChild(div);
+}
+
+function displayFileMessage(sender, filename, url) {
+  const div = document.createElement("div");
+  div.className = "file-message";
+  div.innerHTML = `<strong>${sender}</strong> sent a file: <a href="${url}" target="_blank">${filename}</a>`;
+  document.getElementById("messageArea").appendChild(div);
+}
+
+function displayServerInfo(msg) {
+  const div = document.createElement("div");
+  div.className = "server-message";
+  div.textContent = msg;
+  document.getElementById("messageArea").appendChild(div);
+}
+
+// ----------------------
+// STEP 11: RECONNECT SUPPORT
+// ----------------------
+function tryReconnect(username) {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    console.log("[Reconnect] Attempting...");
+    connectToChatServer(username);
+    reconnectTimer = null;
+  }, 2000);
+}
+
+// ----------------------
+// UTIL: SEND JSON
+// ----------------------
+function sendJson(obj) {
+  if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+    chatWs.send(JSON.stringify(obj));
+  } else {
+    console.warn("Chat socket not ready.");
+  }
+}

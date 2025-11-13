@@ -1,111 +1,160 @@
-    package com.chatapp.common;
+package com.chatapp.common;
 
-    import java.io.Serializable;
-    import java.time.LocalDateTime;
-    import java.util.Objects;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.*;
 
-    /**
-     * Common message protocol for client-server communication
-     * Used across all components
-     */
-    public class Message implements Serializable {
-        private static final long serialVersionUID = 1L;
+/**
+ * Common message protocol for client-server communication
+ * Used across all components
+ */
+public class Message implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-        public enum MessageType {
-            CONNECT, // legacy
-            CONNECT_ACK,
-            CHAT,
-            PRIVATE_MSG,
-            SYSTEM,
-            USER_LIST,
-            API_REQUEST,
-            API_RESPONSE,
-            // Auth related
-            LOGIN,
-            REGISTER,
-            AUTH_RESPONSE,
-            // File related
-            FILE_SEND,
-            FILE_RESPONSE,
-            DISCONNECT,
-            TYPING_START,
-            TYPING_STOP
-        }
+    // Message Types
+    public enum MessageType {
+        CONNECT,
+        CONNECT_ACK,
+        CHAT,
+        PRIVATE_MSG,
+        SYSTEM,
+        USER_LIST,
+        API_REQUEST,
+        API_RESPONSE,
+        LOGIN,
+        REGISTER,
+        AUTH_RESPONSE,
+        FILE_SEND,
+        FILE_RESPONSE,
+        DISCONNECT,
+        TYPING_START,
+        TYPING_STOP,
+        MESSAGE_DELIVERED,
+        MESSAGE_SEEN
+    }
 
-        private MessageType type;
-        private String sender;
-        private String receiver; // for private messages
-        private String content;
+    // Message Status Types
+    public enum MessageStatus {
+        SENT,       // Message sent to server
+        DELIVERED,  // Delivered to receiver(s)
+        SEEN        // Seen by receiver(s)
+    }
 
-        // File fields
-        private byte[] fileData;
-        private String fileName;
-        private long fileSize;
-        private LocalDateTime timestamp;
+    private MessageType type;
+    private String sender;
+    private String receiver;
+    private String content;
+    private LocalDateTime timestamp;
 
-        public Message(MessageType type, String sender, String content) {
-            this.type = type;
-            this.sender = sender;
-            this.content = content;
-            this.timestamp = LocalDateTime.now();
-        }
+    // File-related fields
+    private byte[] fileData;
+    private String fileName;
+    private long fileSize;
 
-        public Message(MessageType type, String sender, String content, String receiver) {
-            this(type, sender, content);
-            this.receiver = receiver;
-        }
+    // Message tracking fields
+    private String messageId;                 // Unique ID for message
+    private MessageStatus status;             // Sent / Delivered / Seen
+    private Set<String> deliveredTo;          // Users who received message
+    private Set<String> seenBy;               // Users who have seen message
 
-        // File constructor
-        public Message(MessageType type, String sender, String content, byte[] fileData, String fileName, long fileSize, String receiver) {
-            this(type, sender, content);
-            this.fileData = fileData;
-            this.fileName = fileName;
-            this.fileSize = fileSize;
-            this.receiver = receiver;
-        }
+    // Constructors
+    public Message(MessageType type, String sender, String content) {
+        this.type = type;
+        this.sender = sender;
+        this.content = content;
+        this.timestamp = LocalDateTime.now();
+        this.messageId = UUID.randomUUID().toString();
+        this.status = MessageStatus.SENT;
+        this.deliveredTo = new HashSet<>();
+        this.seenBy = new HashSet<>();
+    }
 
-        // Getters and setters
-        public MessageType getType() { return type; }
-        public void setType(MessageType type) { this.type = type; }
+    public Message(MessageType type, String sender, String content, String receiver) {
+        this(type, sender, content);
+        this.receiver = receiver;
+    }
 
-        public String getSender() { return sender; }
-        public void setSender(String sender) { this.sender = sender; }
+    public Message(MessageType type, String sender, String content,
+                   byte[] fileData, String fileName, long fileSize, String receiver) {
+        this(type, sender, content, receiver);
+        this.fileData = fileData;
+        this.fileName = fileName;
+        this.fileSize = fileSize;
+    }
 
-        public String getReceiver() { return receiver; }
-        public void setReceiver(String receiver) { this.receiver = receiver; }
+    // Getters and Setters
+    public MessageType getType() { return type; }
+    public void setType(MessageType type) { this.type = type; }
 
-        public String getContent() { return content; }
-        public void setContent(String content) { this.content = content; }
+    public String getSender() { return sender; }
+    public void setSender(String sender) { this.sender = sender; }
 
-        public byte[] getFileData() { return fileData; }
-        public void setFileData(byte[] fileData) { this.fileData = fileData; }
-        public String getFileName() { return fileName; }
-        public void setFileName(String fileName) { this.fileName = fileName; }
-        public long getFileSize() { return fileSize; }
-        public void setFileSize(long fileSize) { this.fileSize = fileSize; }
+    public String getReceiver() { return receiver; }
+    public void setReceiver(String receiver) { this.receiver = receiver; }
 
-        public LocalDateTime getTimestamp() { return timestamp; }
-        public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 
-        @Override
-        public String toString() {
-            return String.format("[%s] %s: %s", timestamp.toString(), sender, content);
-        }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+    public byte[] getFileData() { return fileData; }
+    public void setFileData(byte[] fileData) { this.fileData = fileData; }
 
-            Message message = (Message) o;
-            return Objects.equals(type, message.type) &&
-                    Objects.equals(sender, message.sender) &&
-                    Objects.equals(receiver, message.receiver) &&
-                    Objects.equals(content, message.content);
-        }
+    public String getFileName() { return fileName; }
+    public void setFileName(String fileName) { this.fileName = fileName; }
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(type, sender, receiver, content);
+    public long getFileSize() { return fileSize; }
+    public void setFileSize(long fileSize) { this.fileSize = fileSize; }
+
+    public String getMessageId() { return messageId; }
+    public void setMessageId(String messageId) { this.messageId = messageId; }
+
+    public MessageStatus getStatus() { return status; }
+    public void setStatus(MessageStatus status) { this.status = status; }
+
+    public Set<String> getDeliveredTo() { return deliveredTo; }
+    public void setDeliveredTo(Set<String> deliveredTo) { this.deliveredTo = deliveredTo; }
+
+    public Set<String> getSeenBy() { return seenBy; }
+    public void setSeenBy(Set<String> seenBy) { this.seenBy = seenBy; }
+
+    // Helper methods for delivery tracking
+    public void markDeliveredTo(String username) {
+        if (deliveredTo != null) {
+            deliveredTo.add(username);
         }
     }
+
+    public void markSeenBy(String username) {
+        if (seenBy != null) {
+            seenBy.add(username);
+        }
+    }
+
+    public boolean isDeliveredToAll(Set<String> allUsers) {
+        return deliveredTo != null && allUsers != null && deliveredTo.containsAll(allUsers);
+    }
+
+    public boolean isSeenByAll(Set<String> allUsers) {
+        return seenBy != null && allUsers != null && seenBy.containsAll(allUsers);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s] %s: %s [%s]", timestamp, sender, content, status);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Message)) return false;
+        Message message = (Message) o;
+        return Objects.equals(messageId, message.messageId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(messageId);
+    }
+}

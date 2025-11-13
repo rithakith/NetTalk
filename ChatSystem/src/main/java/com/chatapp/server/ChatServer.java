@@ -2,7 +2,6 @@ package com.chatapp.server;
 
 import com.chatapp.common.Message;
 import com.chatapp.api.ExternalApiClient;
-import com.chatapp.util.PasswordUtil;
 
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -18,6 +17,7 @@ import java.util.concurrent.TimeUnit;
  * - Member 3: NIO Message Broadcaster
  * - Member 4: Thread-Safe User Manager
  * - Member 5: External API Integration
+ * - Extended: Message Delivery and Seen Tracking
  */
 public class ChatServer {
     private static final int PORT = 8888;
@@ -30,24 +30,24 @@ public class ChatServer {
     // Member 2's component
     private ExecutorService clientExecutor;
 
-    // Member 3's component (disabled by default, can be enabled for demo)
-    // private MessageBroadcaster nioBroadcaster;
-    // private Thread broadcasterThread;
-
     // Member 4's component
     private UserManager userManager;
+
+    // Extended feature: Message delivery and seen tracking
+    private MessageTracker messageTracker;
 
     // Server state
     private volatile boolean running;
 
     public ChatServer() {
         this.userManager = new UserManager();
+        this.messageTracker = new MessageTracker(userManager);
         this.clientExecutor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.running = false;
 
         System.out.println("=".repeat(60));
         System.out.println("ChatSystem - Network Programming Assignment");
-        System.out.println("Demonstrating 5 Network Programming Concepts");
+        System.out.println("Demonstrating 5 Network Programming Concepts + Message Tracking");
         System.out.println("=".repeat(60));
     }
 
@@ -72,31 +72,15 @@ public class ChatServer {
         listenerThread = new Thread(connectionListener, "ConnectionListener");
         listenerThread.start();
 
-        // Optional: Start Member 3's NIO Broadcaster
-        // Uncomment to enable NIO broadcasting
-        /*
-        try {
-            nioBroadcaster = new MessageBroadcaster();
-            broadcasterThread = new Thread(nioBroadcaster, "NIOBroadcaster");
-            broadcasterThread.start();
-        } catch (IOException e) {
-            System.err.println("Failed to start NIO broadcaster: " + e.getMessage());
-        }
-        */
-
         System.out.println("[ChatServer] Server started successfully!");
         System.out.println("[ChatServer] Ready to accept connections...\n");
     }
 
     /**
-     * Handle new client connection (called by Member 1's ConnectionListener)
-     * Uses Member 2's ExecutorService to handle concurrently
+     * Handle new client connection (called by ConnectionListener)
      */
     public void handleNewClient(Socket clientSocket) {
-        // Create Member 2's ClientHandler
         ClientHandler handler = new ClientHandler(clientSocket, this);
-
-        // Submit to thread pool for concurrent execution
         clientExecutor.submit(handler);
         System.out.println("[ChatServer] Client handler submitted to thread pool");
     }
@@ -115,10 +99,8 @@ public class ChatServer {
         boolean success = userManager.registerUser(username, handler);
 
         if (success) {
-            // Send user list to all clients
             userManager.broadcastUserList();
         } else {
-            // Username already exists
             Message errorMsg = new Message(Message.MessageType.SYSTEM, "Server",
                     "Username '" + username + "' is already active. Please reconnect with a different name.");
             handler.sendMessage(errorMsg);
@@ -127,7 +109,7 @@ public class ChatServer {
     }
 
     /**
-     * Unregister client (uses Member 4's UserManager)
+     * Unregister client and update user list
      */
     public void unregisterClient(String username) {
         userManager.unregisterUser(username);
@@ -135,17 +117,20 @@ public class ChatServer {
     }
 
     /**
-     * Broadcast message to all connected clients
+     * Broadcast message to all connected clients and track delivery
      */
     public void broadcastMessage(Message message) {
-        // Add to chat history (Member 4's thread-safe operation)
         if (message.getType() == Message.MessageType.CHAT) {
             userManager.addToChatHistory(message);
+            messageTracker.trackMessage(message);
         }
 
-        // Send to all clients
         for (ClientHandler handler : userManager.getAllHandlers()) {
             handler.sendMessage(message);
+            if (message.getType() == Message.MessageType.CHAT &&
+                    !handler.getUsername().equals(message.getSender())) {
+                messageTracker.markDelivered(message.getMessageId(), handler.getUsername());
+            }
         }
 
         System.out.println("[ChatServer] Broadcasted: " + message.getSender() + ": " + message.getContent());
@@ -155,18 +140,16 @@ public class ChatServer {
      * Broadcast typing status to all other clients (excluding sender)
      */
     public void broadcastTypingStatus(Message message, ClientHandler sender) {
-        // Send typing status to all clients except the sender
         for (ClientHandler handler : userManager.getAllHandlers()) {
             if (handler != sender) {
                 handler.sendMessage(message);
             }
         }
-        
         System.out.println("[ChatServer] Typing status: " + message.getSender() + " - " + message.getType());
     }
 
     /**
-     * Send private message to specific user
+     * Send private message to a specific user
      */
     public void sendPrivateMessage(Message message) {
         String receiver = message.getReceiver();
@@ -174,8 +157,9 @@ public class ChatServer {
 
         if (receiverHandler != null) {
             receiverHandler.sendMessage(message);
+            messageTracker.trackMessage(message);
+            messageTracker.markDelivered(message.getMessageId(), receiver);
 
-            // Send confirmation to sender
             ClientHandler senderHandler = userManager.getUserHandler(message.getSender());
             if (senderHandler != null) {
                 Message confirmMsg = new Message(Message.MessageType.SYSTEM, "Server",
@@ -183,7 +167,6 @@ public class ChatServer {
                 senderHandler.sendMessage(confirmMsg);
             }
         } else {
-            // User not found
             ClientHandler senderHandler = userManager.getUserHandler(message.getSender());
             if (senderHandler != null) {
                 Message errorMsg = new Message(Message.MessageType.SYSTEM, "Server",
@@ -194,10 +177,37 @@ public class ChatServer {
     }
 
     /**
+     * Handle message delivered confirmation
+     */
+    public void handleMessageDelivered(String messageId, String username) {
+        messageTracker.markDelivered(messageId, username);
+    }
+
+    /**
+     * Handle message seen confirmation
+     */
+    public void handleMessageSeen(String messageId, String username) {
+        messageTracker.markSeen(messageId, username);
+    }
+
+    /**
+     * Mark all messages from one sender as seen by another user
+     */
+    public void markAllMessagesSeen(String viewerUsername, String senderUsername) {
+        messageTracker.markAllMessagesSeen(viewerUsername, senderUsername);
+    }
+
+    /**
+     * Get MessageTracker instance
+     */
+    public MessageTracker getMessageTracker() {
+        return messageTracker;
+    }
+
+    /**
      * Handle API request (Member 5's External API Integration)
      */
     public void handleApiRequest(Message request, ClientHandler requester) {
-        // Process in separate thread to avoid blocking
         clientExecutor.submit(() -> {
             Message response = ExternalApiClient.processApiRequest(request);
             requester.sendMessage(response);
@@ -211,19 +221,10 @@ public class ChatServer {
         System.out.println("\n[ChatServer] Shutting down server...");
         running = false;
 
-        // Shutdown connection listener
         if (connectionListener != null) {
             connectionListener.shutdown();
         }
 
-        // Shutdown NIO broadcaster if running
-        /*
-        if (nioBroadcaster != null) {
-            nioBroadcaster.shutdown();
-        }
-        */
-
-        // Shutdown client executor
         clientExecutor.shutdown();
         try {
             if (!clientExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -237,7 +238,7 @@ public class ChatServer {
     }
 
     /**
-     * Get server statistics
+     * Print server statistics
      */
     public void printStatistics() {
         System.out.println("\n" + "=".repeat(60));
@@ -250,23 +251,18 @@ public class ChatServer {
     }
 
     /**
-     * Main method to start the server
+     * Main entry point
      */
     public static void main(String[] args) {
         ChatServer server = new ChatServer();
 
-        // Start server
         server.start();
 
-        // Add shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            server.shutdown();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(server::shutdown));
 
-        // Keep server running and print stats periodically
         try {
             while (server.running) {
-                Thread.sleep(30000); // Print stats every 30 seconds
+                Thread.sleep(30000);
                 server.printStatistics();
             }
         } catch (InterruptedException e) {
