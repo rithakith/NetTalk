@@ -909,18 +909,20 @@ button {
 .status-icon {
     font-family: monospace;
     font-weight: bold;
+    font-size: 1.1em;
 }
 
 .status-sent {
-    color: #999;
+    color: #999 !important;
 }
 
 .status-delivered {
-    color: #666;
+    color: #666 !important;
 }
 
 .status-seen {
-    color: #667eea;
+    color: #667eea !important;
+    text-shadow: 0 0 2px rgba(102, 126, 234, 0.3);
 }
 
 /* Message hover effect for better status visibility */
@@ -931,6 +933,8 @@ button {
 .message-status {
     opacity: 0.7;
     transition: opacity 0.2s;
+}
+
 /* Stored Messages Styles */
 .message-stored {
     opacity: 0.8;
