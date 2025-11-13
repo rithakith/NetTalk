@@ -29,6 +29,11 @@ public class UserManager {
     // Thread-safe list for chat history
     private final CopyOnWriteArrayList<Message> chatHistory;
     
+    // Admin and moderation management
+    private final ConcurrentHashMap<String, Boolean> adminUsers; // username -> isAdmin
+    private final ConcurrentHashMap<String, Boolean> bannedUsers; // username -> isBanned
+    private final ConcurrentHashMap<String, Boolean> mutedUsers; // username -> isMuted
+    
     // Maximum chat history size
     private static final int MAX_HISTORY_SIZE = 100;
     
@@ -39,7 +44,12 @@ public class UserManager {
     public UserManager() {
         this.activeUsers = new ConcurrentHashMap<>();
         this.chatHistory = new CopyOnWriteArrayList<>();
-        System.out.println("[UserManager] Thread-safe user manager initialized");
+        this.adminUsers = new ConcurrentHashMap<>();
+        this.bannedUsers = new ConcurrentHashMap<>();
+        this.mutedUsers = new ConcurrentHashMap<>();
+        
+        // Set default admin (first user named "admin" or any user can be promoted)
+        System.out.println("[UserManager] Thread-safe user manager initialized with moderation support");
     }
     
     /**
@@ -200,5 +210,102 @@ public class UserManager {
         for (ClientHandler handler : getAllHandlers()) {
             handler.sendMessage(userListMsg);
         }
+    }
+    
+    // ========== ADMIN & MODERATION METHODS ==========
+    
+    /**
+     * Promote user to admin
+     */
+    public void promoteToAdmin(String username) {
+        adminUsers.put(username, true);
+        System.out.println("[UserManager] User '" + username + "' promoted to admin");
+    }
+    
+    /**
+     * Demote user from admin
+     */
+    public void demoteFromAdmin(String username) {
+        adminUsers.remove(username);
+        System.out.println("[UserManager] User '" + username + "' demoted from admin");
+    }
+    
+    /**
+     * Check if user is admin
+     */
+    public boolean isAdmin(String username) {
+        // Auto-promote user named "admin" or "Admin"
+        if (username != null && (username.equalsIgnoreCase("admin") || username.equalsIgnoreCase("administrator"))) {
+            adminUsers.putIfAbsent(username, true);
+            return true;
+        }
+        return adminUsers.getOrDefault(username, false);
+    }
+    
+    /**
+     * Ban user
+     */
+    public void banUser(String username) {
+        bannedUsers.put(username, true);
+        System.out.println("[UserManager] User '" + username + "' has been banned");
+    }
+    
+    /**
+     * Unban user
+     */
+    public void unbanUser(String username) {
+        bannedUsers.remove(username);
+        System.out.println("[UserManager] User '" + username + "' has been unbanned");
+    }
+    
+    /**
+     * Check if user is banned
+     */
+    public boolean isBanned(String username) {
+        return bannedUsers.getOrDefault(username, false);
+    }
+    
+    /**
+     * Mute user
+     */
+    public void muteUser(String username) {
+        mutedUsers.put(username, true);
+        System.out.println("[UserManager] User '" + username + "' has been muted");
+    }
+    
+    /**
+     * Unmute user
+     */
+    public void unmuteUser(String username) {
+        mutedUsers.remove(username);
+        System.out.println("[UserManager] User '" + username + "' has been unmuted");
+    }
+    
+    /**
+     * Check if user is muted
+     */
+    public boolean isMuted(String username) {
+        return mutedUsers.getOrDefault(username, false);
+    }
+    
+    /**
+     * Get list of all admins
+     */
+    public List<String> getAdminList() {
+        return new ArrayList<>(adminUsers.keySet());
+    }
+    
+    /**
+     * Get list of all banned users
+     */
+    public List<String> getBannedList() {
+        return new ArrayList<>(bannedUsers.keySet());
+    }
+    
+    /**
+     * Get list of all muted users
+     */
+    public List<String> getMutedList() {
+        return new ArrayList<>(mutedUsers.keySet());
     }
 }

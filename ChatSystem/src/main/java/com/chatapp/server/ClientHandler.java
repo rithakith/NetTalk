@@ -86,11 +86,23 @@ public class ClientHandler implements Runnable {
     private void processMessage(Message message) {
         switch (message.getType()) {
             case CHAT:
+                // Check if user is muted
+                if (server.isUserMuted(username)) {
+                    sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                        "You are muted and cannot send messages."));
+                    return;
+                }
                 // Broadcast regular chat message
                 server.broadcastMessage(message);
                 break;
                 
             case PRIVATE_MSG:
+                // Check if user is muted
+                if (server.isUserMuted(username)) {
+                    sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                        "You are muted and cannot send messages."));
+                    return;
+                }
                 // Send private message to specific user
                 server.sendPrivateMessage(message);
                 break;
@@ -122,6 +134,31 @@ public class ClientHandler implements Runnable {
             case MESSAGE_SEEN:
                 // Handle message seen confirmation
                 server.handleMessageSeen(message.getContent(), username);
+                break;
+            
+            // Admin commands
+            case ADMIN_KICK:
+                server.handleAdminKick(username, message.getContent(), this);
+                break;
+                
+            case ADMIN_BAN:
+                server.handleAdminBan(username, message.getContent(), this);
+                break;
+                
+            case ADMIN_MUTE:
+                server.handleAdminMute(username, message.getContent(), this);
+                break;
+                
+            case ADMIN_UNMUTE:
+                server.handleAdminUnmute(username, message.getContent(), this);
+                break;
+                
+            case ADMIN_BROADCAST:
+                server.handleAdminBroadcast(username, message.getContent(), this);
+                break;
+                
+            case ADMIN_STATS:
+                server.handleAdminStats(username, this);
                 break;
                 
             default:

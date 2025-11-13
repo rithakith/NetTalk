@@ -297,6 +297,8 @@ function handleMessage(message) {
             
         case 'SYSTEM':
             addMessage('SYSTEM', 'Server', message.content);
+            // Check if this is an admin status message
+            checkAdminStatus(message.content);
             break;
             
         case 'TYPING_START':
@@ -364,6 +366,9 @@ function disconnect() {
     isTyping = false;
     typingUsers.clear();
     clearTimeout(typingTimeout);
+    
+    // Hide admin panel
+    hideAdminPanel();
     
     chatPanel.style.display = 'none';
     connectionPanel.style.display = 'block';
@@ -930,3 +935,183 @@ window.clearChatHistory = function() {
         alert('Chat history cleared!');
     }
 };
+
+// ========== ADMIN FUNCTIONALITY ==========
+
+let isAdmin = false;
+let currentAdminCommand = '';
+
+/**
+ * Check if user is admin and show admin panel
+ */
+function checkAdminStatus(msg) {
+    // Check if server message indicates admin status
+    if (msg.includes('ADMIN') || msg.includes('admin')) {
+        isAdmin = true;
+        showAdminPanel();
+    }
+}
+
+/**
+ * Show admin panel
+ */
+function showAdminPanel() {
+    const adminSection = document.getElementById('adminSection');
+    const adminCommands = document.getElementById('adminCommands');
+    
+    if (adminSection && adminCommands) {
+        adminSection.style.display = 'block';
+        adminCommands.style.display = 'block';
+    }
+}
+
+/**
+ * Hide admin panel
+ */
+function hideAdminPanel() {
+    const adminSection = document.getElementById('adminSection');
+    const adminCommands = document.getElementById('adminCommands');
+    
+    if (adminSection && adminCommands) {
+        adminSection.style.display = 'none';
+        adminCommands.style.display = 'none';
+    }
+    isAdmin = false;
+}
+
+/**
+ * Show admin command dialog
+ */
+window.showAdminDialog = function(command) {
+    currentAdminCommand = command;
+    const dialog = document.getElementById('adminDialog');
+    const title = document.getElementById('adminDialogTitle');
+    const input = document.getElementById('adminInput');
+    
+    // Set title and placeholder based on command
+    switch(command) {
+        case 'kick':
+            title.textContent = '🚫 Kick User';
+            input.placeholder = 'Enter username to kick';
+            break;
+        case 'ban':
+            title.textContent = '🔨 Ban User';
+            input.placeholder = 'Enter username to ban';
+            break;
+        case 'mute':
+            title.textContent = '🔇 Mute User';
+            input.placeholder = 'Enter username to mute';
+            break;
+        case 'unmute':
+            title.textContent = '🔊 Unmute User';
+            input.placeholder = 'Enter username to unmute';
+            break;
+        case 'broadcast':
+            title.textContent = '📢 Admin Broadcast';
+            input.placeholder = 'Enter announcement message';
+            break;
+    }
+    
+    input.value = '';
+    dialog.style.display = 'flex';
+    input.focus();
+};
+
+/**
+ * Close admin dialog
+ */
+window.closeAdminDialog = function() {
+    const dialog = document.getElementById('adminDialog');
+    dialog.style.display = 'none';
+    currentAdminCommand = '';
+};
+
+/**
+ * Execute admin command
+ */
+window.executeAdminCommand = function() {
+    const input = document.getElementById('adminInput');
+    const value = input.value.trim();
+    
+    if (!value) {
+        alert('Please enter a value');
+        return;
+    }
+    
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Not connected to server');
+        return;
+    }
+    
+    let msgType = '';
+    let payload = {};
+    
+    switch(currentAdminCommand) {
+        case 'kick':
+            msgType = 'ADMIN_KICK';
+            payload = {
+                type: msgType,
+                sender: username,
+                target: value
+            };
+            break;
+        case 'ban':
+            msgType = 'ADMIN_BAN';
+            payload = {
+                type: msgType,
+                sender: username,
+                target: value
+            };
+            break;
+        case 'mute':
+            msgType = 'ADMIN_MUTE';
+            payload = {
+                type: msgType,
+                sender: username,
+                target: value
+            };
+            break;
+        case 'unmute':
+            msgType = 'ADMIN_UNMUTE';
+            payload = {
+                type: msgType,
+                sender: username,
+                target: value
+            };
+            break;
+        case 'broadcast':
+            msgType = 'ADMIN_BROADCAST';
+            payload = {
+                type: msgType,
+                sender: username,
+                content: value
+            };
+            break;
+    }
+    
+    // Send admin command
+    ws.send(JSON.stringify(payload));
+    console.log('Admin command sent:', payload);
+    
+    // Close dialog
+    closeAdminDialog();
+};
+
+/**
+ * Send admin stats request
+ */
+window.sendAdminStats = function() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Not connected to server');
+        return;
+    }
+    
+    const payload = {
+        type: 'ADMIN_STATS',
+        sender: username
+    };
+    
+    ws.send(JSON.stringify(payload));
+    console.log('Admin stats requested');
+};
+

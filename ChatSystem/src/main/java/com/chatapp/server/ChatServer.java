@@ -3,6 +3,7 @@ package com.chatapp.server;
 import com.chatapp.common.Message;
 import com.chatapp.api.ExternalApiClient;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -104,9 +105,25 @@ public class ChatServer {
      * Register client (uses Member 4's UserManager)
      */
     public void registerClient(String username, ClientHandler handler) {
+        // Check if user is banned
+        if (userManager.isBanned(username)) {
+            Message errorMsg = new Message(Message.MessageType.SYSTEM, "Server",
+                "You are banned from this server.");
+            handler.sendMessage(errorMsg);
+            handler.disconnect();
+            return;
+        }
+        
         boolean success = userManager.registerUser(username, handler);
         
         if (success) {
+            // Check if user is admin
+            if (userManager.isAdmin(username)) {
+                Message adminMsg = new Message(Message.MessageType.SYSTEM, "Server",
+                    "⭐ You are logged in as ADMIN");
+                handler.sendMessage(adminMsg);
+            }
+            
             // Send user list to all clients
             userManager.broadcastUserList();
         } else {
@@ -231,6 +248,223 @@ public class ChatServer {
             Message response = ExternalApiClient.processApiRequest(request);
             requester.sendMessage(response);
         });
+    }
+    
+    // ========== ADMIN & MODERATION METHODS ==========
+    
+    /**
+     * Check if user is muted
+     */
+    public boolean isUserMuted(String username) {
+        return userManager.isMuted(username);
+    }
+    
+    /**
+     * Handle admin kick command
+     */
+    public void handleAdminKick(String adminUsername, String targetUsername, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to kick users."));
+            return;
+        }
+        
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /kick <username>"));
+            return;
+        }
+        
+        ClientHandler targetHandler = userManager.getUserHandler(targetUsername);
+        if (targetHandler == null) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "User '" + targetUsername + "' not found."));
+            return;
+        }
+        
+        // Send kick message to target
+        targetHandler.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "You have been kicked by admin " + adminUsername));
+        
+        // Disconnect target
+        targetHandler.disconnect();
+        
+        // Broadcast to all
+        broadcastMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "🚫 " + targetUsername + " was kicked by admin " + adminUsername));
+        
+        System.out.println("[Admin] " + adminUsername + " kicked " + targetUsername);
+    }
+    
+    /**
+     * Handle admin ban command
+     */
+    public void handleAdminBan(String adminUsername, String targetUsername, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to ban users."));
+            return;
+        }
+        
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /ban <username>"));
+            return;
+        }
+        
+        // Ban the user
+        userManager.banUser(targetUsername);
+        
+        // Kick if currently online
+        ClientHandler targetHandler = userManager.getUserHandler(targetUsername);
+        if (targetHandler != null) {
+            targetHandler.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "You have been banned by admin " + adminUsername));
+            targetHandler.disconnect();
+        }
+        
+        // Broadcast to all
+        broadcastMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "🔨 " + targetUsername + " was banned by admin " + adminUsername));
+        
+        System.out.println("[Admin] " + adminUsername + " banned " + targetUsername);
+    }
+    
+    /**
+     * Handle admin mute command
+     */
+    public void handleAdminMute(String adminUsername, String targetUsername, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to mute users."));
+            return;
+        }
+        
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /mute <username>"));
+            return;
+        }
+        
+        ClientHandler targetHandler = userManager.getUserHandler(targetUsername);
+        if (targetHandler == null) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "User '" + targetUsername + "' not found."));
+            return;
+        }
+        
+        // Mute the user
+        userManager.muteUser(targetUsername);
+        
+        // Notify target
+        targetHandler.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "🔇 You have been muted by admin " + adminUsername));
+        
+        // Notify admin
+        requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "✅ " + targetUsername + " has been muted."));
+        
+        System.out.println("[Admin] " + adminUsername + " muted " + targetUsername);
+    }
+    
+    /**
+     * Handle admin unmute command
+     */
+    public void handleAdminUnmute(String adminUsername, String targetUsername, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to unmute users."));
+            return;
+        }
+        
+        if (targetUsername == null || targetUsername.trim().isEmpty()) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /unmute <username>"));
+            return;
+        }
+        
+        if (!userManager.isMuted(targetUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                targetUsername + " is not muted."));
+            return;
+        }
+        
+        // Unmute the user
+        userManager.unmuteUser(targetUsername);
+        
+        // Notify target if online
+        ClientHandler targetHandler = userManager.getUserHandler(targetUsername);
+        if (targetHandler != null) {
+            targetHandler.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "🔊 You have been unmuted by admin " + adminUsername));
+        }
+        
+        // Notify admin
+        requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+            "✅ " + targetUsername + " has been unmuted."));
+        
+        System.out.println("[Admin] " + adminUsername + " unmuted " + targetUsername);
+    }
+    
+    /**
+     * Handle admin broadcast command
+     */
+    public void handleAdminBroadcast(String adminUsername, String announcement, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to broadcast messages."));
+            return;
+        }
+        
+        if (announcement == null || announcement.trim().isEmpty()) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /broadcast <message>"));
+            return;
+        }
+        
+        // Broadcast announcement
+        Message broadcastMsg = new Message(Message.MessageType.SYSTEM, "Server",
+            "📢 ADMIN ANNOUNCEMENT from " + adminUsername + ": " + announcement);
+        
+        for (ClientHandler handler : userManager.getAllHandlers()) {
+            handler.sendMessage(broadcastMsg);
+        }
+        
+        System.out.println("[Admin] " + adminUsername + " broadcast: " + announcement);
+    }
+    
+    /**
+     * Handle admin stats command
+     */
+    public void handleAdminStats(String adminUsername, ClientHandler requester) {
+        if (!userManager.isAdmin(adminUsername)) {
+            requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "⛔ You don't have admin permissions to view stats."));
+            return;
+        }
+        
+        // Get statistics
+        int activeUsers = userManager.getUserCount();
+        int totalMessages = userManager.getChatHistory().size();
+        List<String> onlineUsers = userManager.getActiveUsernames();
+        List<String> bannedUsers = userManager.getBannedList();
+        List<String> mutedUsers = userManager.getMutedList();
+        List<String> admins = userManager.getAdminList();
+        
+        StringBuilder stats = new StringBuilder();
+        stats.append("\n📊 SERVER STATISTICS\n");
+        stats.append("═══════════════════════\n");
+        stats.append("Active Users: ").append(activeUsers).append("\n");
+        stats.append("Total Messages: ").append(totalMessages).append("\n");
+        stats.append("Online Users: ").append(String.join(", ", onlineUsers)).append("\n");
+        stats.append("Admins: ").append(admins.isEmpty() ? "None" : String.join(", ", admins)).append("\n");
+        stats.append("Banned Users: ").append(bannedUsers.isEmpty() ? "None" : String.join(", ", bannedUsers)).append("\n");
+        stats.append("Muted Users: ").append(mutedUsers.isEmpty() ? "None" : String.join(", ", mutedUsers)).append("\n");
+        stats.append("═══════════════════════");
+        
+        requester.sendMessage(new Message(Message.MessageType.SYSTEM, "Server", stats.toString()));
+        
+        System.out.println("[Admin] " + adminUsername + " requested server statistics");
     }
     
     /**

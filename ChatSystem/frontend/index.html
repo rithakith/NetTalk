@@ -59,6 +59,16 @@
                         <button class="btn-api" data-cmd="/weather London">Weather</button>
                     </div>
                     
+                    <h3 id="adminSection" style="display: none;">⭐ Admin Commands</h3>
+                    <div id="adminCommands" class="api-commands" style="display: none;">
+                        <button class="btn-admin" onclick="showAdminDialog('kick')">Kick User</button>
+                        <button class="btn-admin" onclick="showAdminDialog('ban')">Ban User</button>
+                        <button class="btn-admin" onclick="showAdminDialog('mute')">Mute User</button>
+                        <button class="btn-admin" onclick="showAdminDialog('unmute')">Unmute User</button>
+                        <button class="btn-admin" onclick="showAdminDialog('broadcast')">Broadcast</button>
+                        <button class="btn-admin" onclick="sendAdminStats()">Server Stats</button>
+                    </div>
+                    
                     <h3>Chat History</h3>
                     <div class="api-commands">
                         <button class="btn-danger" onclick="clearChatHistory()" style="font-size: 0.85em;">Clear History</button>
@@ -78,6 +88,19 @@
                             💡 Tip: Use @username to send private message | API commands: /weather, /joke, /quote
                         </small>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Admin Dialog Modal -->
+        <div id="adminDialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeAdminDialog()">&times;</span>
+                <h2 id="adminDialogTitle">Admin Command</h2>
+                <div id="adminDialogBody">
+                    <input type="text" id="adminInput" placeholder="Enter username or message">
+                    <button class="btn-primary" onclick="executeAdminCommand()">Execute</button>
+                    <button class="btn-secondary" onclick="closeAdminDialog()">Cancel</button>
                 </div>
             </div>
         </div>

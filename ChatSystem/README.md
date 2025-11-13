@@ -160,7 +160,15 @@ A multi-client chat application demonstrating core Java Network Programming conc
 4. **User Management** - Thread-safe tracking of online users
 5. **Chat History** - Maintains recent message history
 6. **External API Integration** - Fetch weather, jokes, and quotes
-7. **Graceful Shutdown** - Proper resource cleanup
+7. **Admin Commands & Moderation** ⭐ NEW
+   - Role-based access control
+   - Kick/Ban users
+   - Mute/Unmute functionality
+   - Admin broadcasts
+   - Server statistics dashboard
+8. **Typing Indicators** - Real-time typing status
+9. **Message Status Tracking** - Delivered/Seen receipts
+10. **Graceful Shutdown** - Proper resource cleanup
 
 ---
 
@@ -191,6 +199,16 @@ A multi-client chat application demonstrating core Java Network Programming conc
    - HTTP GET requests to external APIs
    - Response parsing and handling
    - Integration with third-party services
+
+---
+
+## 📚 Documentation
+
+- **[ADMIN_COMMANDS_README.md](ADMIN_COMMANDS_README.md)** - Complete admin & moderation guide
+- **[ADMIN_TESTING_GUIDE.md](ADMIN_TESTING_GUIDE.md)** - Step-by-step testing instructions
+- **[MESSAGE_SEEN_STATUS_README.md](MESSAGE_SEEN_STATUS_README.md)** - Message tracking system
+- **[TYPING_INDICATOR_README.md](TYPING_INDICATOR_README.md)** - Typing indicators
+- **[SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)** - Setup and installation
 
 ---
 

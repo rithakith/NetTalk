@@ -167,6 +167,42 @@ public class WebSocketBridgeServer extends org.java_websocket.server.WebSocketSe
                         jsonMsg.get("sender").getAsString(),
                         jsonMsg.get("messageId").getAsString());
                     break;
+                    
+                // Admin commands
+                case "ADMIN_KICK":
+                    msg = new Message(Message.MessageType.ADMIN_KICK,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("target").getAsString());
+                    break;
+                    
+                case "ADMIN_BAN":
+                    msg = new Message(Message.MessageType.ADMIN_BAN,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("target").getAsString());
+                    break;
+                    
+                case "ADMIN_MUTE":
+                    msg = new Message(Message.MessageType.ADMIN_MUTE,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("target").getAsString());
+                    break;
+                    
+                case "ADMIN_UNMUTE":
+                    msg = new Message(Message.MessageType.ADMIN_UNMUTE,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("target").getAsString());
+                    break;
+                    
+                case "ADMIN_BROADCAST":
+                    msg = new Message(Message.MessageType.ADMIN_BROADCAST,
+                        jsonMsg.get("sender").getAsString(),
+                        jsonMsg.get("content").getAsString());
+                    break;
+                    
+                case "ADMIN_STATS":
+                    msg = new Message(Message.MessageType.ADMIN_STATS,
+                        jsonMsg.get("sender").getAsString(), "");
+                    break;
             }
             
             if (msg != null && clientConn.tcpOut != null) {

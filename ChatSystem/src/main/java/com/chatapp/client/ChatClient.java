@@ -162,6 +162,7 @@ public class ChatClient {
         
         if (username.isEmpty()) {
             System.out.println("Username cannot be empty!");
+            scanner.close();
             return;
         }
         

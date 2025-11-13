@@ -1,0 +1,86 @@
+╔════════════════════════════════════════════════════════════════╗
+║                   NetTalk Chat System                          ║
+║                     QUICK REFERENCE                            ║
+╚════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🚀 EASIEST WAY TO START                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+  cd d:\NA\NetTalk\ChatSystem
+  .\start-chat-system.bat
+
+  ✅ Starts everything automatically!
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📝 MANUAL STARTUP (Your Friend's Way)                           │
+└─────────────────────────────────────────────────────────────────┘
+
+  1️⃣  Start Server (PowerShell Window 1):
+      cd d:\NA\NetTalk\ChatSystem
+      .\start-server.bat
+
+  2️⃣  Start WebSocket Bridge (PowerShell Window 2):
+      cd d:\NA\NetTalk\ChatSystem
+      .\run-websocket-server.bat
+
+  3️⃣  Connect Client(s) (PowerShell Window 3, 4, 5...):
+      cd d:\NA\NetTalk\ChatSystem
+      .\start-client.bat
+
+  4️⃣  Open Web Frontend:
+      start frontend\index.html
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚠️  IMPORTANT POWERSHELL TIP                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+  Always use .\ before .bat files in PowerShell!
+
+  ❌ WRONG:   run-websocket-server.bat
+  ✅ CORRECT: .\run-websocket-server.bat
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔌 PORTS                                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+  Port 8888 → ChatServer (Java clients)
+  Port 8889 → WebSocket Bridge (Web frontend)
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 🛠️  TROUBLESHOOTING                                             │
+└─────────────────────────────────────────────────────────────────┘
+
+  Check if servers are running:
+    netstat -ano | findstr "8888 8889"
+
+  Kill Java processes:
+    taskkill /F /IM java.exe
+
+  Verify Java installation:
+    java -version
+    javac -version
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📋 BATCH FILES                                                   │
+└─────────────────────────────────────────────────────────────────┘
+
+  .\start-chat-system.bat     → Start everything
+  .\start-server.bat          → Start ChatServer only
+  .\run-websocket-server.bat  → Start WebSocket Bridge only
+  .\start-client.bat          → Start Java client
+  .\open-frontend.bat         → Open web frontend
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ✅ ALL ISSUES FIXED                                             │
+└─────────────────────────────────────────────────────────────────┘
+
+  ✓ Auto-compilation added to all batch files
+  ✓ UTF-8 encoding for emoji support
+  ✓ PowerShell compatibility
+  ✓ All libraries included (lib/ folder)
+  ✓ Error checking and validation
+
+╔════════════════════════════════════════════════════════════════╗
+║  📖 For detailed instructions, see: README_FIXES.md            ║
+╚════════════════════════════════════════════════════════════════╝
