@@ -72,7 +72,8 @@ function connectToChatServer(username) {
 
   chatWs.onopen = () => {
     console.log(`[Chat] Connected as ${username}`);
-    sendJson({ type: "JOIN", sender: username, content: "Joined chat" });
+    // Send CONNECT instead of JOIN
+    sendJson({ type: "CONNECT", sender: username, content: "Joined chat" });
     restoreMessages();
   };
 
@@ -102,14 +103,14 @@ function handleChatMessage(data) {
       updateUserList(data.content.split(","));
       break;
 
-    case "MESSAGE":
-    case "PRIVATE_MESSAGE":
+    case "CHAT":
+    case "PRIVATE_MSG":
       displayMessage(data.sender, data.content, data.type);
       saveMessage(data);
       break;
 
-    case "FILE":
-      displayFileMessage(data.sender, data.filename, data.content);
+    case "FILE_SEND":
+      displayFileMessage(data.sender, data.fileName, data.content);
       saveMessage(data);
       break;
 
@@ -143,8 +144,9 @@ messageForm.addEventListener("submit", (e) => {
   const message = messageInput.value.trim();
   if (!message) return;
 
+  // Send CHAT instead of MESSAGE
   sendJson({
-    type: "MESSAGE",
+    type: "CHAT",
     sender: currentUser,
     content: message,
   });
@@ -166,9 +168,10 @@ fileInput.onchange = () => {
   const reader = new FileReader();
   reader.onload = () => {
     sendJson({
-      type: "FILE",
+      type: "FILE_SEND",
       sender: currentUser,
-      filename: file.name,
+      fileName: file.name,
+      fileSize: file.size,
       content: reader.result,
     });
   };
@@ -204,7 +207,7 @@ function updateUserList(users) {
 document.querySelectorAll(".btn-api").forEach((btn) => {
   btn.onclick = () =>
     sendJson({
-      type: "MESSAGE",
+      type: "CHAT",
       sender: currentUser,
       content: btn.dataset.cmd,
     });
@@ -265,7 +268,13 @@ function saveMessage(data) {
 
 function restoreMessages() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.messages) || "[]");
-  saved.forEach((m) => displayMessage(m.sender, m.content, m.type));
+  saved.forEach((m) => {
+    if (m.type === "CHAT" || m.type === "PRIVATE_MSG") {
+      displayMessage(m.sender, m.content, m.type);
+    } else if (m.type === "FILE_SEND") {
+      displayFileMessage(m.sender, m.fileName, m.content);
+    }
+  });
 }
 
 function displayMessage(sender, content, type) {

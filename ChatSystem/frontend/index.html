@@ -13,7 +13,7 @@
         <p>Network Programming - Real-Time Chat Application</p>
     </header>
 
-    <!-- AUTH PANEL (NEW) -->
+    <!-- AUTH PANEL -->
     <div id="authPanel" class="panel">
         <h2>User Authentication</h2>
         <div class="form-group">
@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    <!-- Connection Panel (unchanged) -->
+    <!-- Connection Panel -->
     <div id="connectionPanel" class="panel" style="display: none;">
         <h2>Connect to Chat Server</h2>
         <form id="connectForm">
@@ -50,17 +50,21 @@
         </form>
     </div>
 
-        <!-- Chat Panel -->
+    <!-- Chat Panel (Updated) -->
     <div id="chatPanel" class="panel" style="display: none;">
         <div class="chat-header">
             <div>
                 <h2>Chat Room</h2>
-                <p id="connectionStatus">Connected as <span id="currentUsername"></span></p>
+                <p id="connectionStatus">
+                    <span class="status-indicator" id="statusIndicator">🟢</span>
+                    Connected as <span id="currentUsername"></span>
+                </p>
             </div>
             <button id="disconnectBtn" class="btn-danger">Disconnect</button>
         </div>
 
         <div class="chat-main">
+            <!-- Sidebar -->
             <div class="sidebar">
                 <h3>Online Users</h3>
                 <ul id="userList"></ul>
@@ -72,8 +76,14 @@
                     <button class="btn-api" data-cmd="/quote">Quote</button>
                     <button class="btn-api" data-cmd="/weather London">Weather</button>
                 </div>
+
+                <h3>Chat History</h3>
+                <div class="api-commands">
+                    <button class="btn-danger" onclick="clearChatHistory()" style="font-size: 0.85em;">Clear History</button>
+                </div>
             </div>
 
+            <!-- Chat Area -->
             <div class="chat-area">
                 <div id="messageArea" class="message-area"></div>
 
@@ -82,7 +92,7 @@
                     <button type="submit" class="btn-send">Send</button>
                 </form>
 
-                <!-- File upload (NEW) -->
+                <!-- File Upload -->
                 <div class="file-upload">
                     <input type="file" id="fileInput" hidden>
                     <button id="fileBtn" class="btn-primary">📁 Send File</button>
@@ -90,42 +100,42 @@
 
                 <div class="help-text">
                     <small>
-                        💡 Tip: Use @username to send private message | /file to send file | /weather, /joke, /quote
+                        💡 Tip: Use @username to send private message | /file to send file | API commands: /weather, /joke, /quote
                     </small>
                 </div>
             </div>
         </div>
     </div>
 
-        <!-- Feature Showcase -->
+    <!-- Feature Showcase -->
     <div class="features">
         <h2>Network Programming Concepts Demonstrated</h2>
         <div class="feature-grid">
-                <div class="feature-card">
-                    <h3>🔌 Member 1</h3>
-                    <p><strong>TCP Connection Listener</strong></p>
-                    <p>ServerSocket with blocking I/O for reliable client connections</p>
-                </div>
-                <div class="feature-card">
-                    <h3>⚡ Member 2</h3>
-                    <p><strong>Concurrent Client Handler</strong></p>
-                    <p>ExecutorService & ThreadPool for scalable multi-client support</p>
-                </div>
-                <div class="feature-card">
-                    <h3>🚀 Member 3</h3>
-                    <p><strong>NIO Message Broadcaster</strong></p>
-                    <p>Channels, Buffers & Selectors for high-performance I/O</p>
-                </div>
-                <div class="feature-card">
-                    <h3>🔒 Member 4</h3>
-                    <p><strong>Thread-Safe Management</strong></p>
-                    <p>Synchronization & concurrent collections for data safety</p>
-                </div>
-                <div class="feature-card">
-                    <h3>🌍 Member 5</h3>
-                    <p><strong>External API Integration</strong></p>
-                    <p>URL/URLConnection for HTTP requests to external services</p>
-                </div>
+            <div class="feature-card">
+                <h3>🔌 Member 1</h3>
+                <p><strong>TCP Connection Listener</strong></p>
+                <p>ServerSocket with blocking I/O for reliable client connections</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Member 2</h3>
+                <p><strong>Concurrent Client Handler</strong></p>
+                <p>ExecutorService & ThreadPool for scalable multi-client support</p>
+            </div>
+            <div class="feature-card">
+                <h3>🚀 Member 3</h3>
+                <p><strong>NIO Message Broadcaster</strong></p>
+                <p>Channels, Buffers & Selectors for high-performance I/O</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔒 Member 4</h3>
+                <p><strong>Thread-Safe Management</strong></p>
+                <p>Synchronization & concurrent collections for data safety</p>
+            </div>
+            <div class="feature-card">
+                <h3>🌍 Member 5</h3>
+                <p><strong>External API Integration</strong></p>
+                <p>URL/URLConnection for HTTP requests to external services</p>
+            </div>
         </div>
     </div>
 </div>
