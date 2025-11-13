@@ -1,0 +1,152 @@
+<!-- CLEAR BROWSER STORAGE INSTRUCTIONS -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Storage & Test Quiz Deletion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .step {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #5568d3;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .warning {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Quiz Deletion Issue</h1>
+    
+    <div class="step">
+        <h3>Step 1: Clear Browser Storage</h3>
+        <p>Click this button to clear all old quiz data from localStorage:</p>
+        <button class="btn btn-danger" onclick="clearStorage()">Clear Storage</button>
+        <p id="clearStatus"></p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Verify Storage is Empty</h3>
+        <button class="btn" onclick="checkStorage()">Check Storage</button>
+        <p id="storageStatus"></p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Test the System</h3>
+        <ol>
+            <li>Make sure servers are running (<code>start-complete-system.bat</code>)</li>
+            <li>Open <a href="admin.html" target="_blank">Admin Panel</a></li>
+            <li>Connect as <strong>Admin</strong></li>
+            <li>Open <a href="index.html" target="_blank">Client Chat</a> in a new tab</li>
+            <li>Connect as a regular user (e.g., <strong>sachini</strong>)</li>
+            <li>In Admin Panel: Create a test quiz</li>
+            <li>In Client: Verify the quiz appears in "Available Quizzes"</li>
+            <li>In Admin Panel: Delete the quiz</li>
+            <li>In Client: <strong>Open browser console (F12)</strong> and look for these messages:
+                <ul>
+                    <li>🗑️ Received quiz deletion notification</li>
+                    <li>📝 Extracted quiz ID</li>
+                    <li>✅ Quiz deleted and removed from UI</li>
+                </ul>
+            </li>
+            <li>The quiz should disappear from the client's quiz list!</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h3>Step 4: If Still Not Working...</h3>
+        <p>Check these things in the browser console:</p>
+        <ul>
+            <li>Are you receiving the <code>QUIZ_DELETED</code> message?</li>
+            <li>Is the regex matching the quiz ID correctly?</li>
+            <li>Are there any JavaScript errors?</li>
+        </ul>
+        <p>Copy any error messages and share them!</p>
+    </div>
+    
+    <script>
+        function clearStorage() {
+            // Clear all chat-related storage
+            localStorage.removeItem('chatActiveQuizzes');
+            localStorage.removeItem('adminQuizzes');
+            localStorage.removeItem('chatMessages');
+            localStorage.removeItem('chatSession');
+            
+            document.getElementById('clearStatus').innerHTML = 
+                '<span class="success">✅ Storage cleared successfully!</span>';
+            
+            setTimeout(() => {
+                checkStorage();
+            }, 500);
+        }
+        
+        function checkStorage() {
+            const quizzes = localStorage.getItem('chatActiveQuizzes');
+            const adminQuizzes = localStorage.getItem('adminQuizzes');
+            
+            let status = '<strong>Storage Status:</strong><br>';
+            
+            if (!quizzes && !adminQuizzes) {
+                status += '<span class="success">✅ No quiz data found - storage is clean!</span>';
+            } else {
+                if (quizzes) {
+                    const count = JSON.parse(quizzes).length;
+                    status += `<span class="warning">⚠️ Found ${count} quizzes in chatActiveQuizzes</span><br>`;
+                }
+                if (adminQuizzes) {
+                    const count = JSON.parse(adminQuizzes).length;
+                    status += `<span class="warning">⚠️ Found ${count} quizzes in adminQuizzes</span><br>`;
+                }
+                status += '<br><button class="btn btn-danger" onclick="clearStorage()">Clear Now</button>';
+            }
+            
+            document.getElementById('storageStatus').innerHTML = status;
+        }
+        
+        // Auto-check on load
+        window.onload = checkStorage;
+    </script>
+</body>
+</html>

@@ -9,8 +9,11 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌐 ChatSystem</h1>
+            <h1>🌐 NetTalk Quiz System</h1>
             <p>Network Programming - Real-Time Chat Application</p>
+            <div style="margin-top: 15px;">
+                <a href="admin.html" class="btn-primary" style="text-decoration: none; padding: 10px 20px; border-radius: 5px; color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">👑 Admin Panel</a>
+            </div>
         </header>
         
         <!-- Connection Panel -->
@@ -33,30 +36,50 @@
             </form>
         </div>
         
-        <!-- Chat Panel -->
+        <!-- Chat Panel - Three Column Layout -->
         <div id="chatPanel" class="panel" style="display: none;">
+            <!-- Header Bar -->
             <div class="chat-header">
-                <div>
-                    <h2>Chat Room</h2>
+                <div class="header-info">
+                    <h2>💬 Chat Room</h2>
                     <p id="connectionStatus">
                         <span class="status-indicator" id="statusIndicator">🟢</span>
-                        Connected as <span id="currentUsername"></span>
+                        Connected as <strong id="currentUsername"></strong>
                     </p>
                 </div>
-                <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+                <button id="disconnectBtn" class="btn-disconnect">
+                    <span>🚪</span> Disconnect
+                </button>
             </div>
             
-            <div class="chat-main">
-                <div class="sidebar">
-                    <h3>Online Users</h3>
-                    <ul id="userList"></ul>
+            <!-- Three Column Layout -->
+            <div class="three-column-layout">
+                <!-- Left Column: Quizzes & Actions -->
+                <div class="left-column">
+                    <div class="column-header">
+                        <h3>🎯 Quiz Center</h3>
+                    </div>
                     
-                    <h3>API Commands</h3>
-                    <div class="api-commands">
-                        <button class="btn-api" data-cmd="/help">Help</button>
-                        <button class="btn-api" data-cmd="/joke">Random Joke</button>
-                        <button class="btn-api" data-cmd="/quote">Quote</button>
-                        <button class="btn-api" data-cmd="/weather London">Weather</button>
+                    <!-- Active Quiz Notifications -->
+                    <div id="quizNotificationPanel" class="quiz-section" style="display: none;">
+                        <div class="section-title">
+                            <span>🔔 Active Invitations</span>
+                            <button onclick="toggleQuizPanel()" class="btn-close-mini">×</button>
+                        </div>
+                        <div id="quizNotificationList" class="quiz-notification-list">
+                            <!-- Quiz notifications will be added here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Available Quizzes -->
+                    <div class="quiz-section">
+                        <div class="section-title">
+                            <span>📋 Available Quizzes</span>
+                            <button onclick="refreshQuizList()" class="btn-refresh-quiz" title="Refresh quiz list">🔄</button>
+                        </div>
+                        <div id="availableQuizzes" class="available-quizzes">
+                            <p class="quiz-placeholder">No active quizzes</p>
+                        </div>
                     </div>
                     
                     <h3 id="adminSection" style="display: none;">⭐ Admin Commands</h3>
@@ -69,24 +92,107 @@
                         <button class="btn-admin" onclick="sendAdminStats()">Server Stats</button>
                     </div>
                     
-                    <h3>Chat History</h3>
-                    <div class="api-commands">
-                        <button class="btn-danger" onclick="clearChatHistory()" style="font-size: 0.85em;">Clear History</button>
+                    <!-- Quick Actions -->
+                    <div class="quick-actions-section">
+                        <div class="section-title">
+                            <span>⚡ Quick Actions</span>
+                        </div>
+                        
+                        <div class="action-group">
+                            <h4>Quiz Commands</h4>
+                            <div class="quiz-commands-compact">
+                                <code>/quizzes</code> - List all quizzes<br>
+                                <code>/joinquiz &lt;id&gt;</code> - Join quiz<br>
+                                <code>/answer &lt;id&gt; &lt;#&gt;</code> - Answer
+                            </div>
+                        </div>
+                        
+                        <div class="action-group">
+                            <h4>API Commands</h4>
+                            <div class="api-buttons">
+                                <button class="btn-api-compact" data-cmd="/help">💡 Help</button>
+                                <button class="btn-api-compact" data-cmd="/joke">😂 Joke</button>
+                                <button class="btn-api-compact" data-cmd="/quote">📜 Quote</button>
+                                <button class="btn-api-compact" data-cmd="/weather London">🌤️ Weather</button>
+                            </div>
+                        </div>
+                        
+                        <div class="action-group">
+                            <h4>Chat Tools</h4>
+                            <button class="btn-clear-history" onclick="clearChatHistory()">
+                                🗑️ Clear History
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="chat-area">
-                    <div id="messageArea" class="message-area"></div>
+                <!-- Middle Column: Chat Interface -->
+                <div class="middle-column">
+                    <div class="column-header">
+                        <h3>💬 Messages</h3>
+                    </div>
                     
-                    <form id="messageForm" class="message-input">
-                        <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
-                        <button type="submit" class="btn-send">Send</button>
-                    </form>
+                    <div class="chat-container">
+                        <!-- Welcome Screen (shown by default) -->
+                        <div id="welcomeScreen" class="welcome-screen">
+                            <div class="welcome-content">
+                                <div class="welcome-icon">🌐</div>
+                                <h2>Welcome to NetTalk!</h2>
+                                <p class="welcome-subtitle">Real-Time Chat & Quiz System</p>
+                                
+                                <div class="welcome-features">
+                                    <div class="feature-item">
+                                        <span class="feature-icon">💬</span>
+                                        <div class="feature-text">
+                                            <strong>Chat with Friends</strong>
+                                            <p>Send messages and connect in real-time</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="feature-item">
+                                        <span class="feature-icon">🎯</span>
+                                        <div class="feature-text">
+                                            <strong>Join Quizzes</strong>
+                                            <p>Participate in interactive quiz sessions</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="feature-item">
+                                        <span class="feature-icon">👥</span>
+                                        <div class="feature-text">
+                                            <strong>Private Messages</strong>
+                                            <p>Use @username for private conversations</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
+                        
+                        <!-- Message Area (hidden by default) -->
+                        <div id="messageArea" class="message-area" style="display: none;"></div>
+                        
+                        <form id="messageForm" class="message-input-form">
+                            <input type="text" id="messageInput" placeholder="Type a message to start chatting..." autocomplete="off">
+                            <button type="submit" class="btn-send">
+                                <span>📤</span>
+                            </button>
+                        </form>
+                        
+                        <div class="chat-tips">
+                            💡 Tip: Use @username for private messages
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Online Users -->
+                <div class="right-column">
+                    <div class="column-header">
+                        <h3>👥 Online Users</h3>
+                    </div>
                     
-                    <div class="help-text">
-                        <small>
-                            💡 Tip: Use @username to send private message | API commands: /weather, /joke, /quote
-                        </small>
+                    <div class="users-container">
+                        <ul id="userList" class="user-list-modern"></ul>
                     </div>
                 </div>
             </div>

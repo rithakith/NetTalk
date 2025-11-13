@@ -36,19 +36,6 @@ if not exist lib\gson-2.8.9.jar (
     exit /b 1
 )
 
-echo [Step 1/2] Compiling Java source files...
 cd src\main\java
-javac -encoding UTF-8 -cp ".;..\..\..\lib\*" com\chatapp\server\*.java com\chatapp\common\*.java com\chatapp\client\*.java com\chatapp\api\*.java 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Compilation failed! Please check your Java installation.
-    echo [HINT] Make sure Java 21 is installed and JAVA_HOME is set correctly.
-    cd ..\..\..
-    pause
-    exit /b 1
-)
-echo [SUCCESS] Compilation completed!
-echo.
-
-echo [Step 2/2] Starting WebSocket Bridge Server on port 8889...
 java -cp ".;..\..\..\lib\Java-WebSocket-1.5.3.jar;..\..\..\lib\gson-2.8.9.jar;..\..\..\lib\slf4j-api-1.7.36.jar;..\..\..\lib\slf4j-simple-1.7.36.jar" com.chatapp.server.WebSocketBridgeServer
 pause

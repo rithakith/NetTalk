@@ -86,12 +86,6 @@ public class ClientHandler implements Runnable {
     private void processMessage(Message message) {
         switch (message.getType()) {
             case CHAT:
-                // Check if user is muted
-                if (server.isUserMuted(username)) {
-                    sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
-                        "You are muted and cannot send messages."));
-                    return;
-                }
                 // Broadcast regular chat message
                 server.broadcastMessage(message);
                 break;
@@ -161,11 +155,193 @@ public class ClientHandler implements Runnable {
                 server.handleAdminStats(username, this);
                 break;
                 
+            // Quiz message handling
+            case QUIZ_CREATED:
+            case QUIZ_INVITATION:
+            case QUIZ_JOIN:
+            case QUIZ_START:
+            case QUIZ_QUESTION:
+            case QUIZ_ANSWER:
+            case QUIZ_RESULTS:
+            case QUIZ_ENDED:
+                server.handleQuizMessage(message, this);
+                break;
+                
             default:
                 System.out.println("[ClientHandler] Unknown message type: " + message.getType());
         }
     }
     
+    /**
+     * Handle quiz and other commands
+     */
+    private void handleCommand(Message message) {
+        String content = message.getContent();
+        String[] parts = content.split("\\s+", 2); // Split into command and arguments
+        String command = parts[0].toLowerCase();
+        String args = parts.length > 1 ? parts[1] : "";
+        
+        switch (command) {
+            case "/createquiz":
+                handleCreateQuizCommand(args);
+                break;
+                
+            case "/addquestion":
+                handleAddQuestionCommand(args);
+                break;
+                
+            case "/invitequiz":
+                handleInviteQuizCommand(args);
+                break;
+                
+            case "/startquiz":
+                handleStartQuizCommand(args);
+                break;
+                
+            case "/joinquiz":
+                handleJoinQuizCommand(args);
+                break;
+                
+            case "/answer":
+                handleAnswerCommand(args);
+                break;
+                
+            case "/deletequiz":
+                handleDeleteQuizCommand(args);
+                break;
+                
+            case "/help":
+                handleHelpCommand();
+                break;
+                
+            case "/quizzes":
+                handleListQuizzesCommand();
+                break;
+                
+            default:
+                // Send error message back to user
+                sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                    "Unknown command: " + command + ". Type /help for available commands."));
+                break;
+        }
+    }
+    
+    private void handleCreateQuizCommand(String args) {
+        if (args.trim().isEmpty()) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /createquiz <quiz_name>"));
+            return;
+        }
+        
+        server.handleCreateQuiz(args.trim(), username, this);
+    }
+    
+    private void handleAddQuestionCommand(String args) {
+        // Format: /addquestion quiz_id|question_text|option1,option2,option3,option4|correct_index|time_limit
+        String[] parts = args.split("\\|");
+        if (parts.length != 5) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /addquestion quiz_id|question_text|option1,option2,option3,option4|correct_index|time_limit"));
+            return;
+        }
+        
+        try {
+            String quizId = parts[0].trim();
+            String questionText = parts[1].trim();
+            String[] options = parts[2].split(",");
+            int correctIndex = Integer.parseInt(parts[3].trim());
+            int timeLimit = Integer.parseInt(parts[4].trim());
+            
+            server.handleAddQuestion(quizId, questionText, options, correctIndex, timeLimit, username, this);
+        } catch (NumberFormatException e) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Invalid number format in command. Check correct_index and time_limit."));
+        }
+    }
+    
+    private void handleInviteQuizCommand(String args) {
+        // Format: /invitequiz quiz_id username1,username2,username3
+        String[] parts = args.split("\\s+", 2);
+        if (parts.length != 2) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /invitequiz quiz_id username1,username2,username3"));
+            return;
+        }
+        
+        String quizId = parts[0];
+        String[] usernames = parts[1].split(",");
+        server.handleInviteToQuiz(quizId, usernames, username, this);
+    }
+    
+    private void handleStartQuizCommand(String args) {
+        if (args.trim().isEmpty()) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /startquiz <quiz_id>"));
+            return;
+        }
+        
+        server.handleStartQuiz(args.trim(), username, this);
+    }
+    
+    private void handleJoinQuizCommand(String args) {
+        if (args.trim().isEmpty()) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /joinquiz <quiz_id>"));
+            return;
+        }
+        
+        server.handleJoinQuiz(args.trim(), username, this);
+    }
+    
+    private void handleDeleteQuizCommand(String args) {
+        if (args.trim().isEmpty()) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /deletequiz <quiz_id>"));
+            return;
+        }
+        
+        server.handleDeleteQuiz(args.trim(), username, this);
+    }
+    
+    private void handleAnswerCommand(String args) {
+        // Format: /answer quiz_id answer_index
+        String[] parts = args.split("\\s+");
+        if (parts.length != 2) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Usage: /answer quiz_id answer_index"));
+            return;
+        }
+        
+        try {
+            String quizId = parts[0];
+            int answerIndex = Integer.parseInt(parts[1]);
+            server.handleQuizAnswer(quizId, answerIndex, username, this);
+        } catch (NumberFormatException e) {
+            sendMessage(new Message(Message.MessageType.SYSTEM, "Server",
+                "Invalid answer index. Must be a number."));
+        }
+    }
+    
+    private void handleHelpCommand() {
+        StringBuilder help = new StringBuilder();
+        help.append("Available commands:\n");
+        help.append("/createquiz <name> - Create a new quiz\n");
+        help.append("/addquestion quiz_id|question|option1,option2,option3,option4|correct_index|time_limit\n");
+        help.append("/invitequiz quiz_id username1,username2 - Invite users to quiz\n");
+        help.append("/startquiz quiz_id - Start a quiz (admin only)\n");
+        help.append("/joinquiz quiz_id - Join an existing quiz\n");
+        help.append("/answer quiz_id answer_index - Submit answer during quiz\n");
+        help.append("/deletequiz quiz_id - Delete a quiz (admin only)\n");
+        help.append("/quizzes - List active quizzes\n");
+        help.append("/help - Show this help message");
+        
+        sendMessage(new Message(Message.MessageType.SYSTEM, "Server", help.toString()));
+    }
+    
+    private void handleListQuizzesCommand() {
+        server.handleListQuizzes(username, this);
+    }
+
     /**
      * Send message to this client
      */
