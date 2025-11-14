@@ -443,10 +443,14 @@ function handleMessage(message) {
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-results');
             // Display results in quiz container if still active
             displayQuizResults(message.content);
+            // Remove quiz from active list when results are shown (quiz is completed)
+            handleQuizCompleted(message);
             break;
             
         case 'QUIZ_ENDED':
             addMessage('QUIZ', message.sender, message.content, null, null, 'quiz-ended');
+            // Remove quiz from active list when it ends
+            handleQuizCompleted(message);
             break;
             
         case 'QUIZ_DELETED':
@@ -1898,6 +1902,81 @@ function handleQuizMessage(message) {
 }
 
 /**
+ * Handle quiz completion (when quiz ends or results are shown)
+ */
+function handleQuizCompleted(message) {
+    const content = message.content;
+    console.log('🏁 Quiz completed, processing:', content);
+    
+    // Extract quiz ID from various message formats:
+    // Format 1: "🏆 QUIZ COMPLETED: QuizName" (then look for quiz by name)
+    // Format 2: Try to find quiz ID in joined quiz
+    
+    let quizId = null;
+    
+    // If we're currently in a quiz, use that ID
+    if (joinedQuizId) {
+        quizId = joinedQuizId;
+        console.log('📝 Using joined quiz ID:', quizId);
+    } else {
+        // Try to extract quiz name and find matching quiz
+        const nameMatch = content.match(/QUIZ COMPLETED:\s*(.+?)(?:\n|$)/);
+        if (nameMatch) {
+            const quizName = nameMatch[1].trim();
+            console.log('📝 Extracted quiz name:', quizName);
+            
+            // Find quiz by name
+            for (let [id, quiz] of activeQuizzes.entries()) {
+                if (quiz.name === quizName) {
+                    quizId = id;
+                    console.log('📝 Found matching quiz ID:', id);
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (quizId) {
+        console.log('🔴 Removing completed quiz from active list:', quizId);
+        
+        // Remove from active quizzes
+        const wasInActive = activeQuizzes.delete(quizId);
+        console.log('🔴 Removed from activeQuizzes:', wasInActive);
+        
+        // Remove from invitations
+        const wasInInvitations = quizInvitations.delete(quizId);
+        console.log('🔴 Removed from invitations:', wasInInvitations);
+        
+        // Save to storage
+        saveQuizzesToStorage();
+        console.log('💾 Saved to storage. Remaining quizzes:', activeQuizzes.size);
+        
+        // Update UI - remove from quiz list
+        updateAvailableQuizzes();
+        console.log('🔄 Updated available quizzes UI');
+        
+        // Remove quiz list item from DOM
+        const quizListItem = document.getElementById('quiz-list-' + quizId);
+        if (quizListItem) {
+            quizListItem.remove();
+            console.log('🗑️ Removed quiz list item from DOM');
+        }
+        
+        // Remove notification if exists
+        const notification = document.getElementById('quiz-notif-' + quizId);
+        if (notification) {
+            notification.remove();
+            console.log('🗑️ Removed notification from DOM');
+        }
+        
+        console.log('✅ Completed quiz removed from UI:', quizId);
+        console.log('📊 Active quizzes after completion:', Array.from(activeQuizzes.keys()));
+    } else {
+        console.log('⚠️ Could not determine quiz ID from completion message');
+    }
+}
+
+/**
  * Handle quiz deleted notification
  */
 function handleQuizDeleted(message) {
@@ -1977,15 +2056,14 @@ function displayWaitingScreen(quizName, quizId) {
     
     waitingContainer.innerHTML = `
         <div class="quiz-waiting-screen">
-            <div class="waiting-icon">⏳</div>
-            <h2>Joined: ${quizName}</h2>
-            <p class="waiting-message">Waiting for admin to start the quiz...</p>
-            <div class="waiting-info">
-                <p>📝 Quiz ID: <code>${quizId}</code></p>
-                <p>👥 You're in! The quiz will begin shortly.</p>
+            <h3>Joined: ${quizName}</h3>
+            <p>Waiting for admin to start the quiz...</p>
+            <div>
+                <p>Quiz ID: <code>${quizId}</code></p>
+                <p>You're in! The quiz will begin shortly.</p>
             </div>
             <button class="btn-cancel-quiz" onclick="leaveQuiz()">
-                <span>🚪</span> Leave Quiz
+             Leave Quiz
             </button>
         </div>
     `;
@@ -2186,24 +2264,24 @@ function displayQuizInterface(quizName) {
     
     quizContainer.innerHTML = `
         <div class="quiz-header-display">
-            <div class="quiz-icon">📝</div>
+    
             <div class="quiz-title-display">
-                <h2>${quizName}</h2>
-                <p class="quiz-subtitle">Select your answers and submit when ready • ${totalQs} question${totalQs !== 1 && totalQs !== '?' ? 's' : ''}</p>
+                <h3>${quizName}</h3>
+                <p>Select your answers and submit when ready • ${totalQs} question${totalQs !== 1 && totalQs !== '?' ? 's' : ''}</p>
             </div>
         </div>
-        <div id="quizQuestionsContainer" class="quiz-questions-container">
+        <div id="quizQuestionsContainer" >
             <div class="quiz-loading">
-                <span class="loading-spinner">⏳</span>
+               
                 <p>Loading questions...</p>
             </div>
         </div>
         <div class="quiz-footer">
             <button id="submitQuizBtn" class="btn-submit-quiz" onclick="submitQuiz()" disabled>
-                <span>📤</span> Submit Quiz
+              Submit Quiz
             </button>
             <button class="btn-cancel-quiz" onclick="cancelQuiz()">
-                <span>❌</span> Cancel
+                Cancel
             </button>
         </div>
     `;
@@ -2379,17 +2457,17 @@ function submitQuiz() {
     if (container) {
         container.innerHTML = `
             <div class="quiz-submitted">
-                <div class="success-icon">✅</div>
-                <h2>Quiz Submitted!</h2>
+              
+                <h4>Quiz Submitted!</h4>
                 <p>Your answers have been submitted successfully.</p>
-                <p class="submit-details">
+                <p>
                     <strong>Quiz:</strong> ${currentQuiz.name}<br>
                     <strong>Total Questions:</strong> ${quizAnswers.size}<br>
                     <strong>Time:</strong> ${new Date().toLocaleTimeString()}
                 </p>
-                <p class="waiting-results">⏳ Waiting for results...</p>
-                <button class="btn-back-to-chat" onclick="backToChat()">
-                    <span>💬</span> Back to Chat
+                <p> Waiting for results...</p>
+                <button onclick="backToChat()">
+                    Back to Chat
                 </button>
             </div>
         `;
@@ -2442,33 +2520,96 @@ function displayQuizResults(resultsMessage) {
     if (!container) return;
     
     // Parse results from message
-    // Format: "Quiz Results for 'QuizName': \n username - Score: X/Y - Rank: #Z"
+    // Format: "🥇 1. username - 10.00 points (3/3 correct - 100.0%)"
     const lines = resultsMessage.split('\n');
-    let resultsHTML = '<div class="quiz-results-list">';
+    let quizTitle = '';
+    let leaderboardData = [];
     
     lines.forEach((line, index) => {
-        if (line.includes('Score:')) {
-            const isCurrentUser = line.includes(username);
-            const rankClass = index === 1 ? 'rank-gold' : index === 2 ? 'rank-silver' : index === 3 ? 'rank-bronze' : '';
-            resultsHTML += `
-                <div class="result-item ${isCurrentUser ? 'current-user' : ''} ${rankClass}">
-                    <span class="result-rank">#${index}</span>
-                    <span class="result-content">${line}</span>
-                    ${isCurrentUser ? '<span class="you-badge">You</span>' : ''}
-                </div>
-            `;
+        if (line.includes('QUIZ COMPLETED:')) {
+            quizTitle = line.replace('🏆 QUIZ COMPLETED:', '').trim();
+        } else if (line.includes('points') && line.match(/\d+\./)) {
+            // Parse leaderboard entry
+            // Example: "🥇 1. malith - 10.00 points (3/3 correct - 100.0%)"
+            const rankMatch = line.match(/(\d+)\.\s+([^\-]+)\s*-\s*([\d.]+)\s*points\s*\((\d+)\/(\d+)\s*correct\s*-\s*([\d.]+)%\)/);
+            
+            if (rankMatch) {
+                const rank = parseInt(rankMatch[1]);
+                const playerName = rankMatch[2].trim();
+                const points = parseFloat(rankMatch[3]);
+                const correct = parseInt(rankMatch[4]);
+                const total = parseInt(rankMatch[5]);
+                const accuracy = parseFloat(rankMatch[6]);
+                
+                // Extract medal emoji
+                let medal = '';
+                if (line.includes('🥇')) medal = '🥇';
+                else if (line.includes('🥈')) medal = '🥈';
+                else if (line.includes('🥉')) medal = '🥉';
+                
+                leaderboardData.push({
+                    rank,
+                    medal,
+                    name: playerName,
+                    points,
+                    correct,
+                    total,
+                    accuracy,
+                    isCurrentUser: playerName.toLowerCase() === username.toLowerCase()
+                });
+            }
         }
     });
     
-    resultsHTML += '</div>';
+    // Sort by rank
+    leaderboardData.sort((a, b) => a.rank - b.rank);
+    
+    // Build leaderboard HTML
+    let leaderboardHTML = '<div class="quiz-results-leaderboard">';
+    
+    leaderboardData.forEach((player) => {
+        const rankClass = player.rank === 1 ? 'rank-gold' : 
+                         player.rank === 2 ? 'rank-silver' : 
+                         player.rank === 3 ? 'rank-bronze' : '';
+        
+        leaderboardHTML += `
+            <div class="result-item ${player.isCurrentUser ? 'current-user-result' : ''} ${rankClass}">
+                <div class="result-rank-badge">
+                    ${player.medal ? `<span class="medal">${player.medal}</span>` : `<span class="rank-number">#${player.rank}</span>`}
+                </div>
+                <div class="result-player-info">
+                    <div class="player-name">
+                        ${player.name}
+                        ${player.isCurrentUser ? '<span class="you-badge">You</span>' : ''}
+                    </div>
+                    <div class="player-stats">
+                        <span class="stat-item">
+                            <strong>${player.correct}/${player.total}</strong> correct
+                        </span>
+                        <span class="stat-divider">•</span>
+                        <span class="stat-item">
+                            <strong>${player.points.toFixed(1)}</strong> points
+                        </span>
+                        <span class="stat-divider">•</span>
+                        <span class="stat-item accuracy">
+                            <strong>${player.accuracy.toFixed(1)}%</strong> accuracy
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    leaderboardHTML += '</div>';
     
     container.innerHTML = `
         <div class="quiz-results">
-            <div class="results-icon">🏆</div>
-            <h2>Quiz Results</h2>
-            ${resultsHTML}
+         
+            <h3>${quizTitle || 'Quiz Results'}</h3>
+            <div >Final Leaderboard</div>
+            ${leaderboardHTML}
             <button class="btn-back-to-chat" onclick="backToChat()">
-                <span>💬</span> Back to Chat
+               Back to Chat
             </button>
         </div>
     `;

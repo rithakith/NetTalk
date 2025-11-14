@@ -295,8 +295,9 @@ public class QuizManager {
         for (int i = 0; i < leaderboard.size(); i++) {
             QuizParticipant participant = leaderboard.get(i);
             String medal = i == 0 ? "🥇" : i == 1 ? "🥈" : i == 2 ? "🥉" : "   ";
-            results.append(String.format("%s %d. %s - %.2f points (%.1f%% accuracy)\n", 
-                medal, i + 1, participant.getUsername(), participant.getTotalScore(), participant.getAccuracy()));
+            results.append(String.format("%s %d. %s - %.2f points (%d/%d correct - %.1f%%)\n", 
+                medal, i + 1, participant.getUsername(), participant.getTotalScore(), 
+                participant.getCorrectAnswers(), participant.getTotalQuestions(), participant.getAccuracy()));
         }
         
         List<String> allUsers = new ArrayList<>(quiz.getParticipantUsernames());
