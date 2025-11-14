@@ -137,7 +137,8 @@ public class SimpleWebServer {
                 <body>
                     <div class="container">
                         <header>
-                            <h1>🌐 NetTalk Quiz System</h1>
+                        <br>
+                            <h1>NetTalk Quiz System</h1>
                             <p>Interactive Chat with Quiz Features</p>
                         </header>
                         

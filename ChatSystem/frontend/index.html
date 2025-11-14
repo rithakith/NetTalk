@@ -184,7 +184,7 @@
     <div id="authPage" class="auth-container">
       <div class="auth-card">
         <div class="auth-header">
-          <h1>🌐 NetTalk</h1>
+          <h1> NetTalk</h1>
           <p>Real-Time Quiz & Chat Platform</p>
         </div>
 
@@ -266,38 +266,24 @@
             </form>
           </div>
 
-          <div class="admin-link">
-            <a href="admin.html">👑 Admin Panel</a>
-          </div>
+   
         </div>
       </div>
     </div>
 
     <!-- Main Application (Hidden until authenticated) -->
     <div id="mainApp" style="display: none">
-      <div class="container">
+      <div class="container" style="margin: auto;">
         <header>
-          <h1>🌐 NetTalk Quiz System</h1>
+            <br>
+          <h1>NetTalk Quiz System</h1>
           <p>Network Programming - Real-Time Chat Application</p>
-          <div style="margin-top: 15px">
-            <a
-              href="admin.html"
-              class="btn-primary"
-              style="
-                text-decoration: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                color: white;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              "
-              >👑 Admin Panel</a
-            >
-          </div>
+         
         </header>
 
         <!-- Connection Panel -->
-        <div id="connectionPanel" class="panel">
-          <h2>Connect to Chat Server</h2>
+        <div id="connectionPanel" style="width: 60%; margin:auto " class="panel">
+          <h2 style="color: black;">Connect to Chat Server</h2>
           <form id="connectForm">
             <div class="form-group">
               <label for="username">Username:</label>
@@ -326,7 +312,7 @@
                 placeholder="8888"
               />
             </div>
-            <button type="submit" class="btn-primary">Connect</button>
+            <button type="submit" class="btn-primary" style="background-color: #464c56">Connect</button>
           </form>
         </div>
 
@@ -351,7 +337,7 @@
             <!-- Left Column: Quizzes & Actions -->
             <div class="left-column">
               <div class="column-header">
-                <h3>🎯 Quiz Center</h3>
+                <h3>Quiz Center</h3>
               </div>
 
               <!-- Active Quiz Notifications -->
@@ -388,38 +374,6 @@
                 </div>
               </div>
 
-              <!-- Quick Actions -->
-              <div class="quick-actions-section">
-                <div class="section-title">
-                  <span>⚡ Quick Actions</span>
-                </div>
-
-                <div class="action-group">
-                  <h4>Quiz Commands</h4>
-                  <div class="quiz-commands-compact">
-                    <code>/quizzes</code> - List all quizzes<br />
-                    <code>/joinquiz &lt;id&gt;</code> - Join quiz<br />
-                    <code>/answer &lt;id&gt; &lt;#&gt;</code> - Answer
-                  </div>
-                </div>
-
-                <div class="action-group">
-                  <h4>API Commands</h4>
-                  <div class="api-buttons">
-                    <button class="btn-api-compact" data-cmd="/help">
-                      💡 Help
-                    </button>
-                    <button class="btn-api-compact" data-cmd="/joke">
-                      😂 Joke
-                    </button>
-                    <button class="btn-api-compact" data-cmd="/quote">
-                      📜 Quote
-                    </button>
-                    <button class="btn-api-compact" data-cmd="/weather London">
-                      🌤️ Weather
-                    </button>
-                  </div>
-                </div>
 
                 <div class="action-group">
                   <h4>Chat Tools</h4>
@@ -431,7 +385,6 @@
                   </button>
                 </div>
               </div>
-            </div>
 
             <!-- Middle Column: Chat Interface -->
             <div class="middle-column">
