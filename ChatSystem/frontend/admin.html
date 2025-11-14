@@ -1,1879 +1,2541 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NetTalk Quiz Admin Panel</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <style>
-        /* Additional admin-specific styles */
-        .admin-panel {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 2px solid #667eea;
-        }
-        
-        .admin-section {
-            background: #f8f9ff;
-            border: 1px solid #667eea;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-        }
-        
-        .admin-section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 5px;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .form-full {
-            grid-column: 1 / -1;
-        }
-        
-        .btn-admin {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 5px;
-            transition: transform 0.2s;
-        }
-        
-        .btn-admin:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        }
-        
-        .btn-success {
-            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
-        }
-        
-        .quiz-list {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-        }
-        
-        .quiz-item {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            padding: 10px;
-            margin: 5px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .quiz-info {
-            flex-grow: 1;
-        }
-        
-        .quiz-actions {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .status-indicator {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
-        
-        .status-created { background: #ffc107; color: #856404; }
-        .status-ready { background: #17a2b8; color: #0c5460; }
-        .status-active { background: #28a745; color: #155724; }
-        .status-running { background: #dc3545; color: #721c24; }
-        .status-completed { background: #6c757d; color: #383d41; }
-        .status-ended { background: #6c757d; color: #383d41; }
-        
-        /* Workflow Tabs */
-        .workflow-tabs {
-            display: flex;
-            gap: 5px;
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        
-        .tab-btn {
-            flex: 1;
-            min-width: 150px;
-            padding: 12px 20px;
-            border: 2px solid #ddd;
-            background: white;
-            color: #666;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .tab-btn:hover:not(:disabled) {
-            border-color: #667eea;
-            background: #f0f4ff;
-            transform: translateY(-2px);
-        }
-        
-        .tab-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-        
-        .tab-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .tab-btn span {
-            font-size: 1.2em;
-        }
-        
-        /* Tab Content */
-        .tab-content {
-            min-height: 400px;
-        }
-        
-        .tab-pane {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        
-        .tab-pane.active {
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Enhanced Form Styles */
-        .help-text {
-            color: #666;
-            font-style: italic;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            border-radius: 4px;
-        }
-        
-        .required {
-            color: #dc3545;
-        }
-        
-        .hint {
-            display: block;
-            font-size: 0.85em;
-            color: #999;
-            margin-top: 5px;
-        }
-        
-        .input-large, .select-large, .textarea-large {
-            width: 100%;
-            padding: 12px;
-            font-size: 1em;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            transition: border-color 0.3s;
-        }
-        
-        .input-large:focus, .select-large:focus, .textarea-large:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .input-medium, .select-medium {
-            width: 100%;
-            padding: 10px;
-            font-size: 0.95em;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-        }
-        
-        .input-small {
-            width: 100%;
-            padding: 8px;
-            font-size: 0.9em;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-        }
-        
-        .input-option {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 0.95em;
-        }
-        
-        .quiz-selector {
-            background: #e8f0ff;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        
-        .quiz-selector label {
-            font-weight: bold;
-            color: #667eea;
-            display: block;
-            margin-bottom: 8px;
-        }
-        
-        .current-quiz-box {
-            background: #d4edda;
-            border: 2px solid #28a745;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .current-quiz-box h4 {
-            color: #28a745;
-            margin-top: 0;
-        }
-        
-        .options-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 15px 0;
-        }
-        
-        .option-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
-        }
-        
-        .question-counter {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 1.1em;
-            margin-bottom: 15px;
-            display: inline-block;
-        }
-        
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .button-group-vertical {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        
-        .added-questions-list {
-            margin-top: 30px;
-        }
-        
-        .added-questions-list h4 {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-        
-        #questionsList {
-            margin-top: 15px;
-        }
-        
-        .question-item {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-        
-        .question-item:hover {
-            background: #e9ecef;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-        }
-        
-        .question-item-header {
-            font-weight: bold;
-            color: #495057;
-            margin-bottom: 10px;
-            font-size: 1.05em;
-        }
-        
-        .question-item-options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        
-        .question-option {
-            padding: 8px;
-            background: white;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-        }
-        
-        .question-option.correct {
-            background: #d4edda;
-            border-color: #28a745;
-            font-weight: bold;
-        }
-        
-        .question-option-label {
-            font-weight: bold;
-            color: #667eea;
-            margin-right: 5px;
-        }
-        
-        .question-meta {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #dee2e6;
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-        
-        .no-questions-message {
-            text-align: center;
-            padding: 30px;
-            color: #6c757d;
-            font-style: italic;
-        }
-        
-        .btn-large {
-            padding: 15px 30px !important;
-            font-size: 1.1em !important;
-        }
-        
-        .btn-xl {
-            padding: 20px 40px !important;
-            font-size: 1.2em !important;
-        }
-        
-        .added-questions-list {
-            margin-top: 20px;
-            border-top: 2px solid #ddd;
-            padding-top: 15px;
-        }
-        
-        .question-item {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        
-        .question-item h5 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-        
-        .quiz-control-box {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 15px;
-        }
-        
-        .quiz-info-card {
-            background: white;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .quiz-info-card h4 {
-            margin-top: 0;
-            color: #667eea;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-        
-        .quiz-list-enhanced {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .placeholder-text {
-            text-align: center;
-            color: #999;
-            font-style: italic;
-            padding: 40px;
-        }
-        
-        .console-section {
-            margin-top: 20px;
-            border-top: 3px solid #667eea;
-            padding-top: 20px;
-        }
-        
-        .admin-console-display {
-            background: #000;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            padding: 15px;
-            border-radius: 5px;
-            height: 150px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            margin-bottom: 10px;
-        }
-        
-        .console-input-group {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .console-input-group input {
-            flex: 1;
-        }
-        
-        .textarea-large {
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        .textarea-medium {
-            min-height: 80px;
-            resize: vertical;
-        }
-        
-        #adminConsole {
-            background: #000;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            padding: 15px;
-            border-radius: 5px;
-            height: 200px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
+      /* Additional admin-specific styles */
+      .admin-panel {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+      }
+
+      .admin-section {
+        background: #ffffff;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 24px;
+        margin: 16px 0;
+      }
+
+      .admin-section h3 {
+        color: #24292e;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #e1e4e8;
+        padding-bottom: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .form-full {
+        grid-column: 1 / -1;
+      }
+
+      .btn-admin {
+        background: #2d3748;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        margin: 4px;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+      }
+
+      .btn-admin:hover {
+        background: #1a202c;
+        box-shadow: 0 2px 6px rgba(45, 55, 72, 0.2);
+      }
+
+      .btn-admin:active {
+        transform: translateY(1px);
+      }
+
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+      }
+
+      .btn-danger:hover {
+        background: #c82333;
+        box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2);
+      }
+
+      .btn-danger:active {
+        transform: translateY(1px);
+      }
+
+      .btn-success {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+      }
+
+      .btn-success:hover {
+        background: #218838;
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.2);
+      }
+
+      .btn-success:active {
+        transform: translateY(1px);
+      }
+
+      .quiz-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 12px;
+      }
+
+      .quiz-item {
+        background: #f8f9fa;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+      }
+
+      .quiz-item:hover {
+        background: #e9ecef;
+        border-color: #adb5bd;
+      }
+
+      .quiz-info {
+        flex-grow: 1;
+      }
+
+      .quiz-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .status-indicator {
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .status-created {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+      .status-ready {
+        background: #cff4fc;
+        color: #055160;
+        border: 1px solid #9eeaf9;
+      }
+      .status-active {
+        background: #d1e7dd;
+        color: #0a3622;
+        border: 1px solid #a3cfbb;
+      }
+      .status-running {
+        background: #f8d7da;
+        color: #58151c;
+        border: 1px solid #f1aeb5;
+      }
+      .status-completed {
+        background: #e2e3e5;
+        color: #383d41;
+        border: 1px solid #d3d6d8;
+      }
+      .status-ended {
+        background: #e2e3e5;
+        color: #383d41;
+        border: 1px solid #d3d6d8;
+      }
+
+      /* Workflow Tabs */
+      .workflow-tabs {
+        display: flex;
+        gap: 8px;
+        background: transparent;
+        padding: 0;
+        border-bottom: 1px solid #e1e4e8;
+        margin: 20px 0;
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        flex: 1;
+        min-width: 140px;
+        padding: 12px 16px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: #586069;
+        border-radius: 0;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 0.9rem;
+      }
+
+      .tab-btn:hover:not(:disabled) {
+        color: #24292e;
+        border-bottom-color: #d1d5db;
+        background: #f6f8fa;
+      }
+
+      .tab-btn.active {
+        background: transparent;
+        color: #051530;
+        border-bottom-color: #2d3748;
+        font-weight: 600;
+      }
+
+      .tab-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .tab-btn span {
+        font-size: 1.1em;
+      }
+
+      /* Tab Content */
+      .tab-content {
+        min-height: 400px;
+      }
+
+      .tab-pane {
+        display: none;
+        animation: fadeIn 0.3s;
+      }
+
+      .tab-pane.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Enhanced Form Styles */
+      .help-text {
+        color: #586069;
+        font-style: normal;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f6f8fa;
+        border-left: 3px solid #2d3748;
+        border-radius: 3px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      .required {
+        color: #d73a49;
+      }
+
+      .hint {
+        display: block;
+        font-size: 0.85rem;
+        color: #6a737d;
+        margin-top: 6px;
+      }
+
+      .input-large,
+      .select-large,
+      .textarea-large {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .input-large:focus,
+      .select-large:focus,
+      .textarea-large:focus {
+        outline: none;
+        border-color: #2d3748;
+        box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+      }
+
+      .input-medium,
+      .select-medium {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+      }
+
+      .input-small {
+        width: 100%;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+      }
+
+      .input-option {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+
+      .quiz-selector {
+        background: #f6f8fa;
+        padding: 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        border: 1px solid #e1e4e8;
+      }
+
+      .quiz-selector label {
+        font-weight: 600;
+        color: #24292e;
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+      }
+
+      .current-quiz-box {
+        background: #d1fae5;
+        border: 1px solid #6ee7b7;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .current-quiz-box h4 {
+        color: #065f46;
+        margin-top: 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .options-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 12px 0;
+      }
+
+      .option-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: #24292e;
+        font-size: 0.9rem;
+      }
+
+      .question-counter {
+        background: #2d3748;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 12px;
+        display: inline-block;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .button-group-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .added-questions-list {
+        margin-top: 24px;
+      }
+
+      .added-questions-list h4 {
+        color: #24292e;
+        border-bottom: 1px solid #e1e4e8;
+        padding-bottom: 10px;
+      }
+
+      #questionsList {
+        margin-top: 12px;
+      }
+
+      .question-item {
+        background: #ffffff;
+        border: 1px solid #e1e4e8;
+        border-left: 3px solid #2d3748;
+        padding: 16px;
+        margin-bottom: 12px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .question-item:hover {
+        background: #f6f8fa;
+        border-left-color: #1a202c;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      .question-item-header {
+        font-weight: 600;
+        color: #24292e;
+        margin-bottom: 10px;
+        font-size: 0.95rem;
+      }
+
+      .question-item-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .question-option {
+        padding: 8px 10px;
+        background: #f6f8fa;
+        border-radius: 4px;
+        border: 1px solid #e1e4e8;
+        font-size: 0.85rem;
+      }
+
+      .question-option.correct {
+        background: #d1fae5;
+        border-color: #6ee7b7;
+        font-weight: 600;
+        color: #065f46;
+      }
+
+      .question-option-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-right: 6px;
+      }
+
+      .question-meta {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e1e4e8;
+        font-size: 0.85rem;
+        color: #6a737d;
+      }
+
+      .no-questions-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6a737d;
+        font-style: normal;
+        font-size: 0.9rem;
+      }
+
+      .btn-large {
+        padding: 12px 24px !important;
+        font-size: 1rem !important;
+      }
+
+      .btn-xl {
+        padding: 14px 32px !important;
+        font-size: 1.05rem !important;
+      }
+
+      .quiz-control-box {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 15px;
+      }
+
+      .quiz-info-card {
+        background: white;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .quiz-info-card h4 {
+        margin-top: 0;
+        color: #667eea;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+
+      .quiz-list-enhanced {
+        max-height: 500px;
+        overflow-y: auto;
+      }
+
+      .placeholder-text {
+        text-align: center;
+        color: #999;
+        font-style: italic;
+        padding: 40px;
+      }
+
+      .console-section {
+        margin-top: 20px;
+        border-top: 3px solid #667eea;
+        padding-top: 20px;
+      }
+
+      .admin-console-display {
+        background: #000;
+        color: #00ff00;
+        font-family: "Courier New", monospace;
+        padding: 15px;
+        border-radius: 5px;
+        height: 150px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        margin-bottom: 10px;
+      }
+
+      .console-input-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      .console-input-group input {
+        flex: 1;
+      }
+
+      .textarea-large {
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      .textarea-medium {
+        min-height: 80px;
+        resize: vertical;
+      }
+
+      #adminConsole {
+        background: #000;
+        color: #00ff00;
+        font-family: "Courier New", monospace;
+        padding: 15px;
+        border-radius: 5px;
+        height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+
+      /* Login Page Styles */
+      .login-container {
+        max-width: 400px;
+        margin: 80px auto;
+        padding: 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+      }
+
+      .login-header {
+        text-align: center;
+        background: #464c56;
+        color: white;
+        padding: 40px 30px;
+        border-radius: 12px 12px 0 0;
+      }
+
+      .login-header h1 {
+        margin: 0 0 8px 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+      }
+
+      .login-header p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.85;
+      }
+
+      .login-form {
+        background: white;
+        padding: 32px 28px;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e8e8e8;
+        border-top: none;
+      }
+
+      .login-form .form-group {
+        margin-bottom: 18px;
+      }
+
+      .login-form label {
+        display: block;
+        color: #24292e;
+        font-weight: 500;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+      }
+
+      .login-form input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+      }
+
+      .login-form input:focus {
+        outline: none;
+        border-color: #2d3748;
+        box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+      }
+
+      .login-btn {
+        width: 100%;
+        padding: 12px;
+        background: #464c56;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 8px;
+      }
+
+      .login-btn:hover {
+        background: #1a202c;
+        box-shadow: 0 2px 8px rgba(45, 55, 72, 0.25);
+      }
+
+      .login-btn:active {
+        transform: translateY(1px);
+      }
+
+      .error-message {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+        text-align: left;
+        font-weight: 400;
+        font-size: 0.9rem;
+        border: 1px solid #fecaca;
+      }
+
+      .login-icon {
+        font-size: 3rem;
+        margin-bottom: 12px;
+      }
+
+      /* Connection Panel Styles - Match Login Page */
+      .connection-container {
+        max-width: 400px;
+        margin: 80px auto;
+        padding: 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+        background: white;
+      }
+
+      .connection-header {
+        text-align: center;
+        background: #464c56;
+        color: white;
+        padding: 40px 30px;
+        border-radius: 12px 12px 0 0;
+      }
+
+      .connection-header h1 {
+        margin: 0 0 8px 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+      }
+
+      .connection-header p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.85;
+      }
+
+      .connection-form {
+        background: white;
+        padding: 32px 28px;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .connection-form .form-group {
+        margin-bottom: 18px;
+      }
+
+      .connection-form label {
+        display: block;
+        color: #24292e;
+        font-weight: 500;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+      }
+
+      .connection-form input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+      }
+
+      .connection-form input:focus {
+        outline: none;
+        border-color: #464c56;
+        box-shadow: 0 0 0 3px rgba(70, 76, 86, 0.1);
+      }
+
+      .connection-btn {
+        width: 100%;
+        padding: 12px;
+        background: #464c56;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 8px;
+      }
+
+      .connection-btn:hover {
+        background: #1a202c;
+        box-shadow: 0 2px 8px rgba(45, 55, 72, 0.25);
+      }
+
+      .connection-btn:active {
+        transform: translateY(1px);
+      }
+
+      #mainApp header {
+        display: none;
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🎯 NetTalk Quiz Admin Panel</h1>
-            <p>Create and manage interactive quiz sessions</p>
-        </header>
-        
-        <!-- Connection Panel -->
-        <div id="connectionPanel" class="panel admin-panel">
-            <h2>👑 Admin Connection</h2>
-            <form id="adminConnectForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="adminUsername">Admin Username:</label>
-                        <input type="text" id="adminUsername" required placeholder="QuizMaster" value="Admin">
-                    </div>
-                    <div class="form-group">
-                        <label for="serverHost">Server:</label>
-                        <input type="text" id="serverHost" value="localhost" placeholder="Server address">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="serverPort">WebSocket Port:</label>
-                        <input type="number" id="serverPort" value="8889" placeholder="8889">
-                    </div>
-                    <div class="form-group">
-                        <button type="submit" class="btn-admin">Connect as Admin</button>
-                    </div>
-                </div>
-            </form>
+  </head>
+  <body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+      <div class="login-header">
+        <h1>Admin Login</h1>
+        <p>NetTalk Quiz Admin Panel</p>
+      </div>
+
+      <div id="loginError" class="error-message"></div>
+
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input
+            type="text"
+            id="loginUsername"
+            placeholder="Enter admin username"
+            required
+          />
         </div>
-        
-        <!-- Admin Panel -->
-        <div id="adminPanel" class="panel" style="display: none;">
-            <div class="chat-header">
-                <div>
-                    <h2>👑 Quiz Administration</h2>
-                    <p id="connectionStatus">
-                        <span class="status-indicator" id="statusIndicator">🟢</span>
-                        Connected as <span id="currentAdminUsername"></span>
-                    </p>
-                </div>
-                <button id="disconnectBtn" class="btn-danger">Disconnect</button>
-            </div>
-            
-            <!-- Quiz Workflow Tabs -->
-            <div class="workflow-tabs">
-                <button class="tab-btn active" onclick="showTab('create')">
-                    <span>1️⃣</span> Create Quiz
-                </button>
-                <button class="tab-btn" onclick="showTab('questions')" id="questionsTabBtn" disabled>
-                    <span>2️⃣</span> Add Questions
-                </button>
-                <button class="tab-btn" onclick="showTab('invite')" id="inviteTabBtn" disabled>
-                    <span>3️⃣</span> Invite Users
-                </button>
-                <button class="tab-btn" onclick="showTab('control')" id="controlTabBtn" disabled>
-                    <span>4️⃣</span> Start Quiz
-                </button>
-                <button class="tab-btn" onclick="showTab('manage')">
-                    <span>📊</span> Manage All
-                </button>
-            </div>
-            
-            <!-- Tab Content -->
-            <div class="tab-content">
-                <!-- Step 1: Create Quiz -->
-                <div id="createTab" class="tab-pane active">
-                    <div class="admin-section">
-                        <h3>📝 Step 1: Give Your Quiz a Name</h3>
-                        <p class="help-text">Start by naming your quiz. Choose a clear, descriptive name that tells users what the quiz is about.</p>
-                        
-                        <div class="form-group">
-                            <label for="newQuizName">Quiz Name: <span class="required">*</span></label>
-                            <input type="text" id="newQuizName" placeholder="e.g., General Knowledge Quiz" class="input-large">
-                            <small class="hint">💡 Examples: "Science Quiz", "History Challenge", "Math Test"</small>
-                        </div>
-                        
-                        <button onclick="createQuiz()" class="btn-admin btn-large">
-                            <span>✨</span> Create Quiz & Continue
-                        </button>
-                        
-                        <div id="currentQuizDisplay" class="current-quiz-box" style="display: none;">
-                            <h4>✅ Quiz Created Successfully!</h4>
-                            <p><strong>Name:</strong> <span id="currentQuizName"></span></p>
-                            <p><strong>Quiz ID:</strong> <span id="currentQuizId"></span></p>
-                            <p><strong>Questions Added:</strong> <span id="currentQuizQuestions">0</span></p>
-                            <button onclick="moveToQuestions()" class="btn-success btn-large">
-                                ➡️ Next Step: Add Questions
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Step 2: Add Questions -->
-                <div id="questionsTab" class="tab-pane">
-                    <div class="admin-section">
-                        <h3>❓ Step 2: Make Questions</h3>
-                        <p class="help-text">Now add questions to your quiz. Each question needs 4 options (A, B, C, D) and mark which one is correct.</p>
-                        
-                        <div class="current-quiz-box" id="questionsQuizInfo" style="display: none;">
-                            <p><strong>📋 Working on:</strong> <span id="questionsQuizName"></span></p>
-                            <p><strong>✅ Questions Added So Far:</strong> <span id="questionsCount">0</span></p>
-                        </div>
-                        
-                        <!-- Message when no quiz created yet -->
-                        <div id="noQuizMessage" class="current-quiz-box" style="background: #fff3cd; border-color: #ffc107; display: block;">
-                            <h4 style="color: #856404;">⚠️ Please Create a Quiz First</h4>
-                            <p>You need to create a quiz before adding questions.</p>
-                            <button onclick="showTab('create')" class="btn-admin">
-                                ← Go to Create Quiz
-                            </button>
-                        </div>
-                        
-                        <div id="questionForm" style="display: none;">
-                            <div class="question-counter">
-                                <span id="questionCount">Question #1</span>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="questionText">Question: <span class="required">*</span></label>
-                                <textarea id="questionText" placeholder="e.g., What is the capital of France?" class="textarea-large" rows="3"></textarea>
-                            </div>
-                            
-                            <div class="options-grid">
-                                <div class="option-group">
-                                    <label>Option A: <span class="required">*</span></label>
-                                    <input type="text" id="option1" placeholder="First answer choice" class="input-option">
-                                </div>
-                                <div class="option-group">
-                                    <label>Option B: <span class="required">*</span></label>
-                                    <input type="text" id="option2" placeholder="Second answer choice" class="input-option">
-                                </div>
-                                <div class="option-group">
-                                    <label>Option C: <span class="required">*</span></label>
-                                    <input type="text" id="option3" placeholder="Third answer choice" class="input-option">
-                                </div>
-                                <div class="option-group">
-                                    <label>Option D: <span class="required">*</span></label>
-                                    <input type="text" id="option4" placeholder="Fourth answer choice" class="input-option">
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="correctAnswer">Correct Answer: <span class="required">*</span></label>
-                                    <select id="correctAnswer" class="select-medium">
-                                        <option value="0">A (Option 1)</option>
-                                        <option value="1">B (Option 2)</option>
-                                        <option value="2">C (Option 3)</option>
-                                        <option value="3">D (Option 4)</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="timeLimit">Time Limit (seconds):</label>
-                                    <input type="number" id="timeLimit" value="30" min="10" max="300" class="input-small">
-                                    <small class="hint">How long users have to answer</small>
-                                </div>
-                            </div>
-                            
-                            <div class="button-group">
-                                <button onclick="addQuestion()" class="btn-success btn-large">
-                                    <span>➕</span> Add Another Question
-                                </button>
-                                <button onclick="makeQuiz()" class="btn-admin btn-large" id="makeQuizBtn" style="display: none;">
-                                    <span>✨</span> Make Quiz
-                                </button>
-                            </div>
-                            
-                            <div id="addedQuestions" class="added-questions-list">
-                                <h4 style="margin-top: 30px; color: #667eea;">📝 Questions Added:</h4>
-                                <div id="questionsList"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Step 3: Invite Participants -->
-                <div id="inviteTab" class="tab-pane">
-                    <div class="admin-section">
-                        <h3>� Step 3: Send Invitations</h3>
-                        <p class="help-text">Now invite users to take your quiz. You can invite specific people or everyone online.</p>
-                        
-                        <div class="current-quiz-box" id="inviteQuizInfo" style="display: none;">
-                            <p><strong>📋 Quiz:</strong> <span id="inviteQuizName"></span></p>
-                            <p><strong>✅ Questions:</strong> <span id="inviteQuestionsCount">0</span></p>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="participants">Who do you want to invite? <span class="required">*</span></label>
-                            <textarea id="participants" placeholder="Type 'all' for everyone&#10;OR&#10;Type specific names: Alice, Bob, Charlie" class="textarea-medium" rows="4"></textarea>
-                            <small class="hint">💡 Tip: Type "all" to invite all online users, or list usernames separated by commas</small>
-                        </div>
-                        
-                        <div class="button-group">
-                            <button onclick="sendInvitations()" class="btn-success btn-large">
-                                <span>📧</span> Send Invitations
-                            </button>
-                            <button onclick="moveToControl()" class="btn-admin btn-large">
-                                ➡️ Next: Start Quiz
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Step 4: Quiz Control -->
-                <div id="controlTab" class="tab-pane">
-                    <div class="admin-section">
-                        <h3>🚀 Step 4: Start Quiz</h3>
-                        <p class="help-text">Everything is ready! Now start the quiz when participants are online.</p>
-                        
-                        <div class="current-quiz-box" id="controlQuizInfo" style="display: none;">
-                            <h4>📋 Ready to Start</h4>
-                            <p><strong>Quiz:</strong> <span id="controlQuizName"></span></p>
-                            <p><strong>Questions:</strong> <span id="controlQuizQuestions">0</span></p>
-                            <p><strong>Status:</strong> <span id="controlQuizStatus" class="status-badge">CREATED</span></p>
-                        </div>
-                        
-                        <div id="controlDisplay" style="display: none;">
-                            <div class="button-group-vertical">
-                                <button onclick="startQuiz()" class="btn-success btn-xl" id="startBtn">
-                                    <span>🎬</span> Start Quiz Now
-                                </button>
-                                <button onclick="endQuiz()" class="btn-danger btn-xl" id="endBtn" disabled>
-                                    <span>🛑</span> End Quiz
-                                </button>
-                            </div>
-                            <small class="hint" style="margin-top: 15px; display: block;">
-                                ✅ When you click "Start Quiz Now", users will be notified and can begin answering questions.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Manage All Quizzes -->
-                <div id="manageTab" class="tab-pane">
-                    <div class="admin-section">
-                        <h3>📊 Manage All Quizzes</h3>
-                        <button onclick="refreshQuizzes()" class="btn-admin">
-                            <span>🔄</span> Refresh List
-                        </button>
-                        
-                        <div id="quizList" class="quiz-list-enhanced">
-                            <p class="placeholder-text">Loading quizzes...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Admin Console -->
-            <div class="admin-section console-section">
-                <h3>💻 Admin Console</h3>
-                <div id="adminConsole" class="admin-console-display"></div>
-                <div class="console-input-group">
-                    <input type="text" id="consoleCommand" placeholder="Type command here... (or use the workflow above)" class="form-full">
-                    <button onclick="sendConsoleCommand()" class="btn-admin">Send</button>
-                </div>
-            </div>
+
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Enter password"
+            required
+          />
         </div>
+
+        <button type="submit" class="login-btn">Login to Admin Panel</button>
+      </form>
     </div>
 
+    <!-- Main Admin Application (Hidden until login) -->
+    <div id="mainApp" style="display: none">
+      <div class="container">
+        <header>
+          <h1>NetTalk Quiz Admin Panel</h1>
+          <p>Create and manage interactive quiz sessions</p>
+        </header>
+
+        <!-- Connection Panel -->
+        <div id="connectionPanel" class="connection-container">
+          <div class="connection-header">
+            <h1>Admin Connection</h1>
+            <p>NetTalk Quiz Admin Panel</p>
+          </div>
+
+          <form id="adminConnectForm" class="connection-form">
+            <div class="form-group">
+              <label for="adminUsername">Admin Username</label>
+              <input
+                type="text"
+                id="adminUsername"
+                required
+                placeholder="Enter admin username"
+                value="Admin"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="serverHost">Server</label>
+              <input
+                type="text"
+                id="serverHost"
+                value="localhost"
+                placeholder="Server address"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="serverPort">WebSocket Port</label>
+              <input
+                type="number"
+                id="serverPort"
+                value="8889"
+                placeholder="8889"
+              />
+            </div>
+
+            <button type="submit" class="connection-btn">
+              Connect as Admin
+            </button>
+          </form>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="panel" style="display: none; width: 80%; margin: 100px auto;">
+          <div class="chat-header">
+            <div>
+              <h2 style="color: #000;">Quiz Administration</h2>
+              <p id="connectionStatus">
+                Connected as <span id="currentAdminUsername"></span>
+              </p>
+            </div>
+            <button id="disconnectBtn" class="btn-danger">Disconnect</button>
+          </div>
+
+          <!-- Quiz Workflow Tabs -->
+          <div class="workflow-tabs" >
+            <button class="tab-btn active" onclick="showTab('create')">
+              <span>1</span> Create Quiz
+            </button>
+            <button
+              class="tab-btn"
+              onclick="showTab('questions')"
+              id="questionsTabBtn"
+              disabled
+            >
+              <span>2</span> Add Questions
+            </button>
+            <button
+              class="tab-btn"
+              onclick="showTab('invite')"
+              id="inviteTabBtn"
+              disabled
+            >
+              <span>3</span> Invite Users
+            </button>
+            <button
+              class="tab-btn"
+              onclick="showTab('control')"
+              id="controlTabBtn"
+              disabled
+            >
+              <span>4</span> Start Quiz
+            </button>
+            <button class="tab-btn" onclick="showTab('manage')">
+              <span>5</span> Manage All
+            </button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-content">
+            <!-- Step 1: Create Quiz -->
+            <div id="createTab" class="tab-pane active">
+              <div class="admin-section">
+                <h3>Step 1: Give Your Quiz a Name</h3>
+
+
+                <div class="form-group">
+            
+                  <input
+                    type="text"
+                    id="newQuizName"
+                    placeholder="e.g., General Knowledge Quiz"
+                    class="input-large"
+                  />
+                 
+                </div>
+
+                <button onclick="createQuiz()" class="btn-admin btn-large" style="color: #0a3622;background-color: #d1e7dd; border-color: #a3cfbb;">
+                  Create Quiz & Continue
+                </button>
+
+                <div
+                  id="currentQuizDisplay"
+                  class="current-quiz-box"
+                  style="display: none"
+                >
+                  <h4>Quiz Created Successfully!</h4>
+                  <p>
+                    <strong>Name:</strong> <span id="currentQuizName"></span>
+                  </p>
+                  <p>
+                    <strong>Quiz ID:</strong> <span id="currentQuizId"></span>
+                  </p>
+                  <p>
+                    <strong>Questions Added:</strong>
+                    <span id="currentQuizQuestions">0</span>
+                  </p>
+                  <button
+                    onclick="moveToQuestions()"
+                    class="btn-success btn-large"
+                  >
+                    ➡️ Next Step: Add Questions
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Add Questions -->
+            <div id="questionsTab" class="tab-pane">
+              <div class="admin-section">
+                <h3> Step 2: Make Questions</h3>
+               
+
+                <div
+                  class="current-quiz-box"
+                  id="questionsQuizInfo"
+                  style="display: none"
+                >
+                  <p>
+                    <strong>📋 Working on:</strong>
+                    <span id="questionsQuizName"></span>
+                  </p>
+                  <p>
+                    <strong>✅ Questions Added So Far:</strong>
+                    <span id="questionsCount">0</span>
+                  </p>
+                </div>
+<br>
+                <!-- Message when no quiz created yet -->
+                <div
+                  id="noQuizMessage"
+                  class="current-quiz-box"
+                  style="
+                    background: #fff3cd;
+                    border-color: #ffc107;
+                    display: block;
+                  "
+                >
+                  <h4 style="color: #856404">⚠️ Please Create a Quiz First</h4>
+                  <p>You need to create a quiz before adding questions.</p>
+                  <button onclick="showTab('create')" class="btn-admin">
+                    ← Go to Create Quiz
+                  </button>
+                </div>
+
+                <div id="questionForm" style="display: none">
+                  <div class="question-counter">
+                    <span id="questionCount">Question #1</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="questionText"
+                      >Question: <span class="required">*</span></label
+                    >
+                    <textarea
+                      id="questionText"
+                      placeholder="e.g., What is the capital of France?"
+                      class="textarea-large"
+                      rows="3"
+                    ></textarea>
+                  </div>
+
+                  <div class="options-grid">
+                    <div class="option-group">
+                      <label>Option A: <span class="required">*</span></label>
+                      <input
+                        type="text"
+                        id="option1"
+                        placeholder="First answer choice"
+                        class="input-option"
+                      />
+                    </div>
+                    <div class="option-group">
+                      <label>Option B: <span class="required">*</span></label>
+                      <input
+                        type="text"
+                        id="option2"
+                        placeholder="Second answer choice"
+                        class="input-option"
+                      />
+                    </div>
+                    <div class="option-group">
+                      <label>Option C: <span class="required">*</span></label>
+                      <input
+                        type="text"
+                        id="option3"
+                        placeholder="Third answer choice"
+                        class="input-option"
+                      />
+                    </div>
+                    <div class="option-group">
+                      <label>Option D: <span class="required">*</span></label>
+                      <input
+                        type="text"
+                        id="option4"
+                        placeholder="Fourth answer choice"
+                        class="input-option"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="correctAnswer"
+                        >Correct Answer: <span class="required">*</span></label
+                      >
+                      <select id="correctAnswer" class="select-medium">
+                        <option value="0">A (Option 1)</option>
+                        <option value="1">B (Option 2)</option>
+                        <option value="2">C (Option 3)</option>
+                        <option value="3">D (Option 4)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="timeLimit">Time Limit (seconds):</label>
+                      <input
+                        type="number"
+                        id="timeLimit"
+                        value="30"
+                        min="10"
+                        max="300"
+                        class="input-small"
+                      />
+                      <small class="hint">How long users have to answer</small>
+                    </div>
+                  </div>
+
+                  <div class="button-group">
+                    <button
+                      onclick="addQuestion()"
+                      class="btn-success btn-large"
+                    >
+                      Add Another Question
+                    </button>
+                    <button
+                      onclick="makeQuiz()"
+                      class="btn-admin btn-large"
+                      id="makeQuizBtn"
+                      style="display: none"
+                    >
+                       Make Quiz
+                    </button>
+                  </div>
+
+                  <div id="addedQuestions" class="added-questions-list">
+                    <h4 style="margin-top: 30px; color: #0c0c0e">
+                      📝 Questions Added:
+                    </h4>
+                    <div id="questionsList"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Invite Participants -->
+            <div id="inviteTab" class="tab-pane">
+              <div class="admin-section">
+                <h3> Step 3: Send Invitations</h3>
+               
+
+                <div
+                  class="current-quiz-box"
+                  id="inviteQuizInfo"
+                  style="display: none"
+                >
+                  <p>
+                    <strong>📋 Quiz:</strong> <span id="inviteQuizName"></span>
+                  </p>
+                  <p>
+                    <strong>✅ Questions:</strong>
+                    <span id="inviteQuestionsCount">0</span>
+                  </p>
+                </div>
+
+                <div class="form-group">
+                  <label for="participants"
+                    >Who do you want to invite?
+                    <span class="required">*</span></label
+                  >
+                  <textarea
+                    id="participants"
+                    class="textarea-medium"
+                    rows="4" cols="100"
+                  ></textarea>
+                  <small class="hint"
+                    >Tip: Type "all" to invite all online users, or list
+                    usernames separated by commas</small
+                  >
+                </div>
+
+                <div class="button-group">
+                  <button
+                    onclick="sendInvitations()"
+                    class="btn-success btn-large"
+                  >
+                    Send Invitations
+                  </button>
+                  <button onclick="moveToControl()" class="btn-admin btn-large">
+                    Next: Start Quiz
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: Quiz Control -->
+            <div id="controlTab" class="tab-pane">
+              <div class="admin-section">
+                <h3>Step 4: Start Quiz</h3>
+               
+                <div
+                  class="current-quiz-box"
+                  id="controlQuizInfo"
+                  style="display: none"
+                >
+                  <h4>Ready to Start</h4>
+                  <p>
+                    <strong>Quiz:</strong> <span id="controlQuizName"></span>
+                  </p>
+                  <p>
+                    <strong>Questions:</strong>
+                    <span id="controlQuizQuestions">0</span>
+                  </p>
+                  <p>
+                    <strong>Status:</strong>
+                    <span id="controlQuizStatus" class="status-badge"
+                      >CREATED</span
+                    >
+                  </p>
+                </div>
+<br>
+                <div id="controlDisplay" style="display: none">
+                  <div class="button-group-horizontal">
+                    <button
+                      onclick="startQuiz()"
+                      class="btn-success btn-xl"
+                      id="startBtn"
+                    >
+                      <span>Start Quiz Now</span>
+                    </button>
+                    <button
+                      onclick="endQuiz()"
+                      class="btn-danger btn-xl"
+                      id="endBtn"
+                      disabled
+                    >
+                      <span>End Quiz</span>
+                    </button>
+                  </div>
+                  <small class="hint" style="margin-top: 15px; display: block">
+                 
+                </div>
+              </div>
+            </div>
+
+            <!-- Manage All Quizzes -->
+            <div id="manageTab" class="tab-pane">
+              <div class="admin-section">
+                <h3>Manage All Quizzes</h3>
+                <button onclick="refreshQuizzes()" class="btn-admin">
+                  Refresh List
+                </button>
+
+                <div id="quizList" class="quiz-list-enhanced">
+                  <p class="placeholder-text">Loading quizzes...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Console -->
+          <div class="admin-section console-section">
+            <h3>💻 Admin Console</h3>
+            <div id="adminConsole" class="admin-console-display"></div>
+            <div class="console-input-group">
+              <input
+                type="text"
+                id="consoleCommand"
+                placeholder="Type command here... (or use the workflow above)"
+                class="form-full"
+              />
+              <button onclick="sendConsoleCommand()" class="btn-admin">
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- End container -->
+    </div>
+    <!-- End mainApp -->
+
     <script>
-        // Admin panel JavaScript
-        let adminConnected = false;
-        let adminUsername = '';
-        let ws = null;
-        let quizzes = new Map();
-        
-        // localStorage keys for admin panel
-        const ADMIN_STORAGE_KEYS = {
-            QUIZZES: 'adminQuizzes',
-            USERNAME: 'adminUsername'
-        };
-        
-        // Load saved quizzes from localStorage on page load
-        function loadQuizzesFromStorage() {
-            try {
-                const savedQuizzes = localStorage.getItem(ADMIN_STORAGE_KEYS.QUIZZES);
-                if (savedQuizzes) {
-                    const quizArray = JSON.parse(savedQuizzes);
-                    quizzes.clear();
-                    quizArray.forEach(quiz => {
-                        quizzes.set(quiz.id, quiz);
-                    });
-                    logToConsole(`📥 Loaded ${quizzes.size} quizzes from storage`);
-                    updateQuizLists();
-                }
-                
-                // Load saved username
-                const savedUsername = localStorage.getItem(ADMIN_STORAGE_KEYS.USERNAME);
-                if (savedUsername) {
-                    document.getElementById('adminUsername').value = savedUsername;
-                }
-            } catch (error) {
-                console.error('Failed to load quizzes from storage:', error);
-            }
-        }
-        
-        // Save quizzes to localStorage
-        function saveQuizzesToStorage() {
-            try {
-                const quizArray = Array.from(quizzes.values());
-                localStorage.setItem(ADMIN_STORAGE_KEYS.QUIZZES, JSON.stringify(quizArray));
-                console.log('Saved', quizArray.length, 'quizzes to storage');
-            } catch (error) {
-                console.error('Failed to save quizzes to storage:', error);
-            }
-        }
+      // Login Authentication
+      const ADMIN_CREDENTIALS = {
+        username: "admin",
+        password: "admin@123",
+      };
 
-        // DOM Elements
-        const connectionPanel = document.getElementById('connectionPanel');
-        const adminPanel = document.getElementById('adminPanel');
-        const adminConnectForm = document.getElementById('adminConnectForm');
-        const currentAdminUsernameSpan = document.getElementById('currentAdminUsername');
-        const disconnectBtn = document.getElementById('disconnectBtn');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const adminConsole = document.getElementById('adminConsole');
-        const consoleCommand = document.getElementById('consoleCommand');
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
 
-        // Connect Form Handler
-        adminConnectForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            adminUsername = document.getElementById('adminUsername').value.trim();
-            const serverHost = document.getElementById('serverHost').value;
-            const serverPort = document.getElementById('serverPort').value;
-            
-            if (!adminUsername) {
-                alert('Please enter an admin username');
-                return;
-            }
-            
-            // Save username to localStorage
-            localStorage.setItem(ADMIN_STORAGE_KEYS.USERNAME, adminUsername);
-            
-            connectToServer(adminUsername, serverHost, serverPort);
+          const username = document.getElementById("loginUsername").value;
+          const password = document.getElementById("loginPassword").value;
+          const errorDiv = document.getElementById("loginError");
+
+          if (
+            username === ADMIN_CREDENTIALS.username &&
+            password === ADMIN_CREDENTIALS.password
+          ) {
+            // Successful login
+            document.getElementById("loginPage").style.display = "none";
+            document.getElementById("mainApp").style.display = "block";
+
+            // Set the admin username in the connection form
+            document.getElementById("adminUsername").value = username;
+
+            // Store login state
+            sessionStorage.setItem("adminLoggedIn", "true");
+          } else {
+            // Failed login
+            errorDiv.textContent = "❌ Invalid username or password";
+            errorDiv.style.display = "block";
+
+            // Clear password field
+            document.getElementById("loginPassword").value = "";
+
+            // Hide error after 3 seconds
+            setTimeout(() => {
+              errorDiv.style.display = "none";
+            }, 3000);
+          }
         });
 
-        // Connect to WebSocket server
-        function connectToServer(username, host, port) {
-            try {
-                logToConsole('🔄 Attempting to connect to ' + host + ':' + port);
-                const wsUrl = `ws://${host}:${port}`;
-                ws = new WebSocket(wsUrl);
-                
-                // Set connection timeout
-                const connectTimeout = setTimeout(() => {
-                    if (!adminConnected) {
-                        logToConsole('❌ Connection timeout - check if WebSocket server is running on port ' + port);
-                        alert('Connection timeout! Make sure WebSocket server is running on port ' + port);
-                        ws.close();
-                    }
-                }, 10000);
-                
-                ws.onopen = () => {
-                    clearTimeout(connectTimeout);
-                    console.log('Admin connected to WebSocket server');
-                    adminConnected = true;
-                    
-                    // Send connection message
-                    ws.send(JSON.stringify({type: 'CONNECT', sender: username}));
-                    
-                    // Update UI
-                    connectionPanel.style.display = 'none';
-                    adminPanel.style.display = 'block';
-                    currentAdminUsernameSpan.textContent = username;
-                    statusIndicator.textContent = '🟢';
-                    
-                    logToConsole('✅ Connected as admin: ' + username);
-                    logToConsole('🎯 Admin panel ready! You can now create and manage quizzes.');
-                    logToConsole('📡 Connected to WebSocket Bridge on port ' + port);
-                    logToConsole('⚠️  IMPORTANT: Admin and users must use port 8889 to share quiz data!');
-                    
-                    // Load saved quizzes first
-                    loadQuizzesFromStorage();
-                    
-                    // Then refresh from server
-                    refreshQuizzes();
-                };
-                
-                ws.onmessage = (event) => {
-                    const message = JSON.parse(event.data);
-                    handleAdminMessage(message);
-                };
-                
-                ws.onclose = () => {
-                    adminConnected = false;
-                    statusIndicator.textContent = '🔴';
-                    logToConsole('❌ Connection closed');
-                };
-                
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    logToConsole('❌ Connection error: ' + error);
-                    alert('WebSocket connection failed! Please check:\n1. WebSocket server is running on port ' + port + '\n2. Server address is correct\n3. No firewall blocking the connection');
-                };
-                
-            } catch (error) {
-                alert('Failed to connect: ' + error.message);
-            }
+      // Check if already logged in
+      window.addEventListener("load", function () {
+        if (sessionStorage.getItem("adminLoggedIn") === "true") {
+          document.getElementById("loginPage").style.display = "none";
+          document.getElementById("mainApp").style.display = "block";
         }
+      });
 
-        // Handle incoming messages
-        function handleAdminMessage(message) {
-            logToConsole(`📨 ${message.type}: ${message.content}`);
-            
-            if (message.type === 'SYSTEM') {
-                // Parse quiz information from system messages
-                if (message.content.includes('Quiz') && message.content.includes('ID:')) {
-                    // Extract quiz ID and name from the message
-                    parseQuizFromMessage(message.content);
-                    updateQuizLists();
-                } else if (message.content.includes('Active Quizzes:')) {
-                    // Parse quiz list response
-                    parseQuizListResponse(message.content);
-                }
-            }
-        }
-        
-        // Parse quiz creation message and extract quiz info
-        function parseQuizFromMessage(content) {
-            // Look for pattern: "Quiz '"name"' created successfully! Quiz ID: xyz" or "Quiz 'name' created successfully! Quiz ID: xyz"
-            const match = content.match(/Quiz ['"](.+?)['"] created successfully! Quiz ID: ([a-zA-Z0-9_]+)/);
-            if (match) {
-                let quizName = match[1];
-                const quizId = match[2];
-                
-                // Strip extra quotes from quiz name if present
-                quizName = quizName.replace(/^["']|["']$/g, '');
-                
-                // Update current quiz ID to match server's ID
-                // Compare with quotes stripped
-                const currentNameStripped = currentQuizName ? currentQuizName.replace(/^["']|["']$/g, '') : '';
-                if (currentNameStripped === quizName) {
-                    const oldId = currentQuizId;
-                    currentQuizId = quizId;
-                    logToConsole(`🔄 Updated current quiz ID: ${oldId} → ${quizId}`);
-                }
-                
-                // Add to local quiz storage
-                quizzes.set(quizId, {
-                    id: quizId,
-                    name: quizName,
-                    admin: adminUsername,
-                    status: 'CREATED',
-                    questions: 0,
-                    createdAt: new Date().toISOString()
-                });
-                
-                logToConsole(`✅ New quiz added: "${quizName}" (ID: ${quizId})`);
-                
-                // Save to localStorage
-                saveQuizzesToStorage();
-                updateQuizLists();
-            }
-        }
-        
-        // Parse quiz list response from /quizzes command
-        function parseQuizListResponse(content) {
-            // Don't clear existing quizzes, merge with server data
-            const serverQuizzes = new Map();
-            
-            // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
-            const lines = content.split('\n');
-            for (let line of lines) {
-                const match = line.match(/- (.+) \(ID: ([a-zA-Z0-9_]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/);
-                if (match) {
-                    const quizName = match[1];
-                    const quizId = match[2];
-                    const adminName = match[3];
-                    const state = match[4];
-                    const questionCount = parseInt(match[5]);
-                    
-                    serverQuizzes.set(quizId, {
-                        id: quizId,
-                        name: quizName,
-                        admin: adminName,
-                        status: state,
-                        questions: questionCount
-                    });
-                }
-            }
-            
-            // Merge server quizzes with local quizzes
-            serverQuizzes.forEach((quiz, id) => {
-                quizzes.set(id, quiz);
+      // Admin panel JavaScript
+      let adminConnected = false;
+      let adminUsername = "";
+      let ws = null;
+      let quizzes = new Map();
+
+      // localStorage keys for admin panel
+      const ADMIN_STORAGE_KEYS = {
+        QUIZZES: "adminQuizzes",
+        USERNAME: "adminUsername",
+      };
+
+      // Load saved quizzes from localStorage on page load
+      function loadQuizzesFromStorage() {
+        try {
+          const savedQuizzes = localStorage.getItem(ADMIN_STORAGE_KEYS.QUIZZES);
+          if (savedQuizzes) {
+            const quizArray = JSON.parse(savedQuizzes);
+            quizzes.clear();
+            quizArray.forEach((quiz) => {
+              quizzes.set(quiz.id, quiz);
             });
-            
-            logToConsole(`📊 Loaded ${serverQuizzes.size} quizzes from server, total: ${quizzes.size}`);
-            
-            // Save merged quizzes to storage
-            saveQuizzesToStorage();
+            logToConsole(`📥 Loaded ${quizzes.size} quizzes from storage`);
             updateQuizLists();
+          }
+
+          // Load saved username
+          const savedUsername = localStorage.getItem(
+            ADMIN_STORAGE_KEYS.USERNAME
+          );
+          if (savedUsername) {
+            document.getElementById("adminUsername").value = savedUsername;
+          }
+        } catch (error) {
+          console.error("Failed to load quizzes from storage:", error);
+        }
+      }
+
+      // Save quizzes to localStorage
+      function saveQuizzesToStorage() {
+        try {
+          const quizArray = Array.from(quizzes.values());
+          localStorage.setItem(
+            ADMIN_STORAGE_KEYS.QUIZZES,
+            JSON.stringify(quizArray)
+          );
+          console.log("Saved", quizArray.length, "quizzes to storage");
+        } catch (error) {
+          console.error("Failed to save quizzes to storage:", error);
+        }
+      }
+
+      // DOM Elements
+      const connectionPanel = document.getElementById("connectionPanel");
+      const adminPanel = document.getElementById("adminPanel");
+      const adminConnectForm = document.getElementById("adminConnectForm");
+      const currentAdminUsernameSpan = document.getElementById(
+        "currentAdminUsername"
+      );
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const statusIndicator = document.getElementById("statusIndicator");
+      const adminConsole = document.getElementById("adminConsole");
+      const consoleCommand = document.getElementById("consoleCommand");
+
+      // Connect Form Handler
+      adminConnectForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        adminUsername = document.getElementById("adminUsername").value.trim();
+        const serverHost = document.getElementById("serverHost").value;
+        const serverPort = document.getElementById("serverPort").value;
+
+        if (!adminUsername) {
+          alert("Please enter an admin username");
+          return;
         }
 
-        // Quiz management functions
-        function createQuiz() {
-            const name = document.getElementById('newQuizName').value.trim();
-            if (!name) {
-                alert('Please enter a quiz name');
-                return;
+        // Save username to localStorage
+        localStorage.setItem(ADMIN_STORAGE_KEYS.USERNAME, adminUsername);
+
+        connectToServer(adminUsername, serverHost, serverPort);
+      });
+
+      // Connect to WebSocket server
+      function connectToServer(username, host, port) {
+        try {
+          logToConsole("🔄 Attempting to connect to " + host + ":" + port);
+          const wsUrl = `ws://${host}:${port}`;
+          ws = new WebSocket(wsUrl);
+
+          // Set connection timeout
+          const connectTimeout = setTimeout(() => {
+            if (!adminConnected) {
+              logToConsole(
+                "❌ Connection timeout - check if WebSocket server is running on port " +
+                  port
+              );
+              alert(
+                "Connection timeout! Make sure WebSocket server is running on port " +
+                  port
+              );
+              ws.close();
             }
-            
-            // Generate quiz ID
-            const quizId = 'quiz_' + Date.now();
-            
-            // Set current quiz for workflow
+          }, 10000);
+
+          ws.onopen = () => {
+            clearTimeout(connectTimeout);
+            console.log("Admin connected to WebSocket server");
+            adminConnected = true;
+
+            // Send connection message
+            ws.send(JSON.stringify({ type: "CONNECT", sender: username }));
+
+            // Update UI
+            connectionPanel.style.display = "none";
+            adminPanel.style.display = "block";
+            currentAdminUsernameSpan.textContent = username;
+            statusIndicator.textContent = "●";
+
+            logToConsole("Connected as admin: " + username);
+            logToConsole(
+              "Admin panel ready! You can now create and manage quizzes."
+            );
+            logToConsole("Connected to WebSocket Bridge on port " + port);
+            logToConsole(
+              "IMPORTANT: Admin and users must use port 8889 to share quiz data!"
+            );
+
+            // Load saved quizzes first
+            loadQuizzesFromStorage();
+
+            // Then refresh from server
+            refreshQuizzes();
+          };
+
+          ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            handleAdminMessage(message);
+          };
+
+          ws.onclose = () => {
+            adminConnected = false;
+            statusIndicator.textContent = "🔴";
+            logToConsole("❌ Connection closed");
+          };
+
+          ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            logToConsole("❌ Connection error: " + error);
+            alert(
+              "WebSocket connection failed! Please check:\n1. WebSocket server is running on port " +
+                port +
+                "\n2. Server address is correct\n3. No firewall blocking the connection"
+            );
+          };
+        } catch (error) {
+          alert("Failed to connect: " + error.message);
+        }
+      }
+
+      // Handle incoming messages
+      function handleAdminMessage(message) {
+        logToConsole(`📨 ${message.type}: ${message.content}`);
+
+        if (message.type === "SYSTEM") {
+          // Parse quiz information from system messages
+          if (
+            message.content.includes("Quiz") &&
+            message.content.includes("ID:")
+          ) {
+            // Extract quiz ID and name from the message
+            parseQuizFromMessage(message.content);
+            updateQuizLists();
+          } else if (message.content.includes("Active Quizzes:")) {
+            // Parse quiz list response
+            parseQuizListResponse(message.content);
+          }
+        }
+      }
+
+      // Parse quiz creation message and extract quiz info
+      function parseQuizFromMessage(content) {
+        // Look for pattern: "Quiz '"name"' created successfully! Quiz ID: xyz" or "Quiz 'name' created successfully! Quiz ID: xyz"
+        const match = content.match(
+          /Quiz ['"](.+?)['"] created successfully! Quiz ID: ([a-zA-Z0-9_]+)/
+        );
+        if (match) {
+          let quizName = match[1];
+          const quizId = match[2];
+
+          // Strip extra quotes from quiz name if present
+          quizName = quizName.replace(/^["']|["']$/g, "");
+
+          // Update current quiz ID to match server's ID
+          // Compare with quotes stripped
+          const currentNameStripped = currentQuizName
+            ? currentQuizName.replace(/^["']|["']$/g, "")
+            : "";
+          if (currentNameStripped === quizName) {
+            const oldId = currentQuizId;
             currentQuizId = quizId;
-            currentQuizName = name;
-            questionCount = 0;
-            
-            sendCommand(`/createquiz "${name}"`);
-            document.getElementById('newQuizName').value = '';
-            
-            logToConsole(`📝 Creating quiz: ${name} with ID: ${quizId}`);
-            
-            // Auto-move to questions tab after short delay
-            setTimeout(() => {
-                moveToQuestions();
-                refreshQuizzes();
-            }, 800);
+            logToConsole(`🔄 Updated current quiz ID: ${oldId} → ${quizId}`);
+          }
+
+          // Add to local quiz storage
+          quizzes.set(quizId, {
+            id: quizId,
+            name: quizName,
+            admin: adminUsername,
+            status: "CREATED",
+            questions: 0,
+            createdAt: new Date().toISOString(),
+          });
+
+          logToConsole(`✅ New quiz added: "${quizName}" (ID: ${quizId})`);
+
+          // Save to localStorage
+          saveQuizzesToStorage();
+          updateQuizLists();
+        }
+      }
+
+      // Parse quiz list response from /quizzes command
+      function parseQuizListResponse(content) {
+        // Don't clear existing quizzes, merge with server data
+        const serverQuizzes = new Map();
+
+        // Parse lines like "- Quiz Name (ID: xyz) - Admin: username - State: CREATED - Questions: 0"
+        const lines = content.split("\n");
+        for (let line of lines) {
+          const match = line.match(
+            /- (.+) \(ID: ([a-zA-Z0-9_]+)\) - Admin: (.+) - State: ([A-Z]+) - Questions: (\d+)/
+          );
+          if (match) {
+            const quizName = match[1];
+            const quizId = match[2];
+            const adminName = match[3];
+            const state = match[4];
+            const questionCount = parseInt(match[5]);
+
+            serverQuizzes.set(quizId, {
+              id: quizId,
+              name: quizName,
+              admin: adminName,
+              status: state,
+              questions: questionCount,
+            });
+          }
         }
 
-        function addQuestion() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return false;
-            }
-            
-            const question = document.getElementById('questionText').value.trim();
-            const opt1 = document.getElementById('option1').value.trim();
-            const opt2 = document.getElementById('option2').value.trim();
-            const opt3 = document.getElementById('option3').value.trim();
-            const opt4 = document.getElementById('option4').value.trim();
-            const correct = document.getElementById('correctAnswer').value;
-            const time = document.getElementById('timeLimit').value;
-            
-            if (!question || !opt1 || !opt2 || !opt3 || !opt4) {
-                alert('Please fill in all fields');
-                return false;
-            }
-            
-            const command = `/addquestion ${currentQuizId}|${question}|${opt1},${opt2},${opt3},${opt4}|${correct}|${time}`;
-            sendCommand(command);
-            
-            // Increment question counter
-            questionCount++;
-            
-            // Update question counter display
-            const counter = document.getElementById('questionCount');
-            if (counter) {
-                counter.textContent = `Question #${questionCount + 1}`;
-            }
-            
-            // Update current quiz questions display (in Step 1)
-            const currentQuestionsDisplay = document.getElementById('currentQuizQuestions');
-            if (currentQuestionsDisplay) {
-                currentQuestionsDisplay.textContent = questionCount;
-            }
-            
-            // Update questions tab count
-            const questionsCount = document.getElementById('questionsCount');
-            if (questionsCount) {
-                questionsCount.textContent = questionCount;
-            }
-            
-            // Update local quiz question count
-            if (quizzes.has(currentQuizId)) {
-                const quiz = quizzes.get(currentQuizId);
-                if (!quiz.questions) quiz.questions = [];
-                quiz.questions.push({
-                    question: question,
-                    options: [opt1, opt2, opt3, opt4],
-                    correctIndex: parseInt(correct),
-                    timeLimit: parseInt(time)
-                });
-                quizzes.set(currentQuizId, quiz);
-                saveQuizzesToStorage();
-                updateQuizLists();
-            }
-            
-            // Display the question in the list
-            displayQuestionInList(questionCount, question, [opt1, opt2, opt3, opt4], parseInt(correct), time);
-            
-            // Show "Make Quiz" button after first question
-            const makeQuizBtn = document.getElementById('makeQuizBtn');
-            if (makeQuizBtn && questionCount > 0) {
-                makeQuizBtn.style.display = 'inline-block';
-            }
-            
-            // Clear form
-            document.getElementById('questionText').value = '';
-            document.getElementById('option1').value = '';
-            document.getElementById('option2').value = '';
-            document.getElementById('option3').value = '';
-            document.getElementById('option4').value = '';
-            
-            logToConsole(`✅ Question ${questionCount} added successfully`);
-            
-            return true;
+        // Merge server quizzes with local quizzes
+        serverQuizzes.forEach((quiz, id) => {
+          quizzes.set(id, quiz);
+        });
+
+        logToConsole(
+          `Loaded ${serverQuizzes.size} quizzes from server, total: ${quizzes.size}`
+        );
+
+        // Save merged quizzes to storage
+        saveQuizzesToStorage();
+        updateQuizLists();
+      }
+
+      // Quiz management functions
+      function createQuiz() {
+        const name = document.getElementById("newQuizName").value.trim();
+        if (!name) {
+          alert("Please enter a quiz name");
+          return;
         }
-        
-        /**
-         * Display a question in the added questions list
-         */
-        function displayQuestionInList(questionNum, question, options, correctIndex, timeLimit) {
-            const questionsList = document.getElementById('questionsList');
-            if (!questionsList) return;
-            
-            const questionItem = document.createElement('div');
-            questionItem.className = 'question-item';
-            questionItem.innerHTML = `
+
+        // Generate quiz ID
+        const quizId = "quiz_" + Date.now();
+
+        // Set current quiz for workflow
+        currentQuizId = quizId;
+        currentQuizName = name;
+        questionCount = 0;
+
+        sendCommand(`/createquiz "${name}"`);
+        document.getElementById("newQuizName").value = "";
+
+        logToConsole(`📝 Creating quiz: ${name} with ID: ${quizId}`);
+
+        // Auto-move to questions tab after short delay
+        setTimeout(() => {
+          moveToQuestions();
+          refreshQuizzes();
+        }, 800);
+      }
+
+      function addQuestion() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return false;
+        }
+
+        const question = document.getElementById("questionText").value.trim();
+        const opt1 = document.getElementById("option1").value.trim();
+        const opt2 = document.getElementById("option2").value.trim();
+        const opt3 = document.getElementById("option3").value.trim();
+        const opt4 = document.getElementById("option4").value.trim();
+        const correct = document.getElementById("correctAnswer").value;
+        const time = document.getElementById("timeLimit").value;
+
+        if (!question || !opt1 || !opt2 || !opt3 || !opt4) {
+          alert("Please fill in all fields");
+          return false;
+        }
+
+        const command = `/addquestion ${currentQuizId}|${question}|${opt1},${opt2},${opt3},${opt4}|${correct}|${time}`;
+        sendCommand(command);
+
+        // Increment question counter
+        questionCount++;
+
+        // Update question counter display
+        const counter = document.getElementById("questionCount");
+        if (counter) {
+          counter.textContent = `Question #${questionCount + 1}`;
+        }
+
+        // Update current quiz questions display (in Step 1)
+        const currentQuestionsDisplay = document.getElementById(
+          "currentQuizQuestions"
+        );
+        if (currentQuestionsDisplay) {
+          currentQuestionsDisplay.textContent = questionCount;
+        }
+
+        // Update questions tab count
+        const questionsCount = document.getElementById("questionsCount");
+        if (questionsCount) {
+          questionsCount.textContent = questionCount;
+        }
+
+        // Update local quiz question count
+        if (quizzes.has(currentQuizId)) {
+          const quiz = quizzes.get(currentQuizId);
+          if (!quiz.questions) quiz.questions = [];
+          quiz.questions.push({
+            question: question,
+            options: [opt1, opt2, opt3, opt4],
+            correctIndex: parseInt(correct),
+            timeLimit: parseInt(time),
+          });
+          quizzes.set(currentQuizId, quiz);
+          saveQuizzesToStorage();
+          updateQuizLists();
+        }
+
+        // Display the question in the list
+        displayQuestionInList(
+          questionCount,
+          question,
+          [opt1, opt2, opt3, opt4],
+          parseInt(correct),
+          time
+        );
+
+        // Show "Make Quiz" button after first question
+        const makeQuizBtn = document.getElementById("makeQuizBtn");
+        if (makeQuizBtn && questionCount > 0) {
+          makeQuizBtn.style.display = "inline-block";
+        }
+
+        // Clear form
+        document.getElementById("questionText").value = "";
+        document.getElementById("option1").value = "";
+        document.getElementById("option2").value = "";
+        document.getElementById("option3").value = "";
+        document.getElementById("option4").value = "";
+
+        logToConsole(`✅ Question ${questionCount} added successfully`);
+
+        return true;
+      }
+
+      /**
+       * Display a question in the added questions list
+       */
+      function displayQuestionInList(
+        questionNum,
+        question,
+        options,
+        correctIndex,
+        timeLimit
+      ) {
+        const questionsList = document.getElementById("questionsList");
+        if (!questionsList) return;
+
+        const questionItem = document.createElement("div");
+        questionItem.className = "question-item";
+        questionItem.innerHTML = `
                 <div class="question-item-header">
                     Question ${questionNum}: ${question}
                 </div>
                 <div class="question-item-options">
-                    <div class="question-option ${correctIndex === 0 ? 'correct' : ''}">
-                        <span class="question-option-label">A:</span> ${options[0]}
-                        ${correctIndex === 0 ? ' ✓' : ''}
+                    <div class="question-option ${
+                      correctIndex === 0 ? "correct" : ""
+                    }">
+                        <span class="question-option-label">A:</span> ${
+                          options[0]
+                        }
+                        ${correctIndex === 0 ? " ✓" : ""}
                     </div>
-                    <div class="question-option ${correctIndex === 1 ? 'correct' : ''}">
-                        <span class="question-option-label">B:</span> ${options[1]}
-                        ${correctIndex === 1 ? ' ✓' : ''}
+                    <div class="question-option ${
+                      correctIndex === 1 ? "correct" : ""
+                    }">
+                        <span class="question-option-label">B:</span> ${
+                          options[1]
+                        }
+                        ${correctIndex === 1 ? " ✓" : ""}
                     </div>
-                    <div class="question-option ${correctIndex === 2 ? 'correct' : ''}">
-                        <span class="question-option-label">C:</span> ${options[2]}
-                        ${correctIndex === 2 ? ' ✓' : ''}
+                    <div class="question-option ${
+                      correctIndex === 2 ? "correct" : ""
+                    }">
+                        <span class="question-option-label">C:</span> ${
+                          options[2]
+                        }
+                        ${correctIndex === 2 ? " ✓" : ""}
                     </div>
-                    <div class="question-option ${correctIndex === 3 ? 'correct' : ''}">
-                        <span class="question-option-label">D:</span> ${options[3]}
-                        ${correctIndex === 3 ? ' ✓' : ''}
+                    <div class="question-option ${
+                      correctIndex === 3 ? "correct" : ""
+                    }">
+                        <span class="question-option-label">D:</span> ${
+                          options[3]
+                        }
+                        ${correctIndex === 3 ? " ✓" : ""}
                     </div>
                 </div>
                 <div class="question-meta">
                     ⏱️ Time Limit: ${timeLimit} seconds
                 </div>
             `;
-            
-            questionsList.appendChild(questionItem);
-        }
-        
-        /**
-         * Make Quiz - finalize and move to invite step
-         */
-        function makeQuiz() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
-            }
 
-            if (questionCount === 0) {
-                alert('Please add at least one question before making the quiz!');
-                return;
-            }
+        questionsList.appendChild(questionItem);
+      }
 
-            // Save to localStorage
-            saveQuizzesToStorage();
-            
-            logToConsole(`💾 Quiz finalized with ${questionCount} question(s). Moving to invitations...`);
-            
-            alert(`✅ Quiz created successfully with ${questionCount} question(s)!\n\nNow invite users to take the quiz.`);
-            
-            // Move to invite tab
-            moveToInvite();
+      /**
+       * Make Quiz - finalize and move to invite step
+       */
+      function makeQuiz() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
         }
 
-        function refreshQuizzes() {
-            logToConsole('🔄 Refreshing quiz list...');
-            sendCommand('/quizzes');
+        if (questionCount === 0) {
+          alert("Please add at least one question before making the quiz!");
+          return;
         }
 
-        function sendConsoleCommand() {
-            const command = consoleCommand.value.trim();
-            if (command) {
-                sendCommand(command);
-                consoleCommand.value = '';
-            }
+        // Save to localStorage
+        saveQuizzesToStorage();
+
+        logToConsole(
+          `💾 Quiz finalized with ${questionCount} question(s). Moving to invitations...`
+        );
+
+        alert(
+          `✅ Quiz created successfully with ${questionCount} question(s)!\n\nNow invite users to take the quiz.`
+        );
+
+        // Move to invite tab
+        moveToInvite();
+      }
+
+      function refreshQuizzes() {
+        logToConsole("🔄 Refreshing quiz list...");
+        sendCommand("/quizzes");
+      }
+
+      function sendConsoleCommand() {
+        const command = consoleCommand.value.trim();
+        if (command) {
+          sendCommand(command);
+          consoleCommand.value = "";
+        }
+      }
+
+      function sendCommand(command) {
+        console.log("sendCommand called with:", command);
+        console.log("adminConnected:", adminConnected);
+        console.log("ws:", ws);
+        console.log("ws.readyState:", ws ? ws.readyState : "no ws");
+
+        if (!adminConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+          const errorMsg =
+            "Not connected to server!\n\nDebug info:\n" +
+            "Connected: " +
+            adminConnected +
+            "\n" +
+            "WebSocket exists: " +
+            (ws ? "Yes" : "No") +
+            "\n" +
+            "WebSocket ready: " +
+            (ws ? (ws.readyState === WebSocket.OPEN ? "Yes" : "No") : "N/A");
+
+          logToConsole("❌ Connection error: " + errorMsg);
+          alert(errorMsg);
+          return;
         }
 
-        function sendCommand(command) {
-            console.log('sendCommand called with:', command);
-            console.log('adminConnected:', adminConnected);
-            console.log('ws:', ws);
-            console.log('ws.readyState:', ws ? ws.readyState : 'no ws');
-            
-            if (!adminConnected || !ws || ws.readyState !== WebSocket.OPEN) {
-                const errorMsg = 'Not connected to server!\n\nDebug info:\n' +
-                    'Connected: ' + adminConnected + '\n' +
-                    'WebSocket exists: ' + (ws ? 'Yes' : 'No') + '\n' +
-                    'WebSocket ready: ' + (ws ? (ws.readyState === WebSocket.OPEN ? 'Yes' : 'No') : 'N/A');
-                    
-                logToConsole('❌ Connection error: ' + errorMsg);
-                alert(errorMsg);
-                return;
-            }
-            
-            logToConsole('🎮 Sending: ' + command);
-            
-            try {
-                ws.send(JSON.stringify({
-                    type: 'CHAT',
-                    sender: adminUsername,
-                    content: command
-                }));
-                logToConsole('✅ Command sent successfully');
-            } catch (error) {
-                logToConsole('❌ Failed to send command: ' + error);
-                alert('Failed to send command: ' + error);
-            }
-        }
+        logToConsole("🎮 Sending: " + command);
 
-        function logToConsole(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            adminConsole.textContent += `[${timestamp}] ${message}\n`;
-            adminConsole.scrollTop = adminConsole.scrollHeight;
+        try {
+          ws.send(
+            JSON.stringify({
+              type: "CHAT",
+              sender: adminUsername,
+              content: command,
+            })
+          );
+          logToConsole("✅ Command sent successfully");
+        } catch (error) {
+          logToConsole("❌ Failed to send command: " + error);
+          alert("Failed to send command: " + error);
         }
+      }
 
-        function updateQuizLists() {
-            // Get all quiz select elements
-            const selectors = [
-                document.getElementById('selectedQuiz'),    // Add question
-                document.getElementById('inviteQuizId'),   // Invite participants  
-                document.getElementById('controlQuizId')   // Quiz control
-            ];
-            
-            // Clear and repopulate each selector
-            selectors.forEach(select => {
-                if (select) {
-                    // Save current selection
-                    const currentValue = select.value;
-                    
-                    // Clear existing options except first
-                    select.innerHTML = '<option value="">Select a quiz...</option>';
-                    
-                    // Add quiz options
-                    quizzes.forEach(quiz => {
-                        const option = document.createElement('option');
-                        option.value = quiz.id;
-                        option.textContent = `${quiz.name} (${quiz.id}) - ${quiz.status} - ${quiz.questions} questions`;
-                        select.appendChild(option);
-                    });
-                    
-                    // Restore selection if it still exists
-                    if (currentValue && quizzes.has(currentValue)) {
-                        select.value = currentValue;
-                    }
-                }
+      function logToConsole(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        adminConsole.textContent += `[${timestamp}] ${message}\n`;
+        adminConsole.scrollTop = adminConsole.scrollHeight;
+      }
+
+      function updateQuizLists() {
+        // Get all quiz select elements
+        const selectors = [
+          document.getElementById("selectedQuiz"), // Add question
+          document.getElementById("inviteQuizId"), // Invite participants
+          document.getElementById("controlQuizId"), // Quiz control
+        ];
+
+        // Clear and repopulate each selector
+        selectors.forEach((select) => {
+          if (select) {
+            // Save current selection
+            const currentValue = select.value;
+
+            // Clear existing options except first
+            select.innerHTML = '<option value="">Select a quiz...</option>';
+
+            // Add quiz options
+            quizzes.forEach((quiz) => {
+              const option = document.createElement("option");
+              option.value = quiz.id;
+              option.textContent = `${quiz.name} (${quiz.id}) - ${quiz.status} - ${quiz.questions} questions`;
+              select.appendChild(option);
             });
-            
-            // Update quiz list display
-            updateQuizListDisplay();
-            
-            logToConsole(`🔄 Updated quiz dropdowns with ${quizzes.size} quizzes`);
-        }
-        
-        function updateQuizListDisplay() {
-            const quizListDiv = document.getElementById('quizList');
-            
-            if (quizzes.size === 0) {
-                quizListDiv.innerHTML = '<p>No active quizzes. Create a quiz to get started!</p>';
-                return;
+
+            // Restore selection if it still exists
+            if (currentValue && quizzes.has(currentValue)) {
+              select.value = currentValue;
             }
-            
-            let html = '';
-            quizzes.forEach(quiz => {
-                const statusClass = `status-${quiz.status.toLowerCase()}`;
-                const canStart = quiz.status === 'CREATED' || quiz.status === 'READY';
-                const canEnd = quiz.status === 'ACTIVE';
-                
-                html += `
+          }
+        });
+
+        // Update quiz list display
+        updateQuizListDisplay();
+
+        logToConsole(`🔄 Updated quiz dropdowns with ${quizzes.size} quizzes`);
+      }
+
+      function updateQuizListDisplay() {
+        const quizListDiv = document.getElementById("quizList");
+
+        if (quizzes.size === 0) {
+          quizListDiv.innerHTML =
+            "<p>No active quizzes. Create a quiz to get started!</p>";
+          return;
+        }
+
+        let html = "";
+        quizzes.forEach((quiz) => {
+          const statusClass = `status-${quiz.status.toLowerCase()}`;
+          const canStart = quiz.status === "CREATED" || quiz.status === "READY";
+          const canEnd = quiz.status === "ACTIVE";
+
+          html += `
                     <div class="quiz-item">
                         <div class="quiz-info">
                             <strong>${quiz.name}</strong><br>
-                            <small>ID: ${quiz.id} | Questions: ${quiz.questions} | Admin: ${quiz.admin || adminUsername}</small>
+                            <small>ID: ${quiz.id} | Questions: ${
+            quiz.questions
+          } | Admin: ${quiz.admin || adminUsername}</small>
                         </div>
                         <div class="quiz-actions">
-                            <span class="status-indicator ${statusClass}">${quiz.status}</span>
-                            ${canStart ? `<button onclick="startQuizById('${quiz.id}')" class="btn-success" style="font-size: 0.8em; padding: 5px 10px;">🚀 Start</button>` : ''}
-                            ${canEnd ? `<button onclick="endQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">🛑 End</button>` : ''}
-                            <button onclick="selectQuizForEditing('${quiz.id}')" class="btn-admin" style="font-size: 0.8em; padding: 5px 10px;">Edit</button>
-                            <button onclick="deleteQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">Delete</button>
+                            <span class="status-indicator ${statusClass}">${
+            quiz.status
+          }</span>
+                            ${
+                              canStart
+                                ? `<button onclick="startQuizById('${quiz.id}')" class="btn-success" style="font-size: 0.8em; padding: 5px 10px;">Start</button>`
+                                : ""
+                            }
+                            ${
+                              canEnd
+                                ? `<button onclick="endQuizById('${quiz.id}')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">End</button>`
+                                : ""
+                            }
+                            <button onclick="selectQuizForEditing('${
+                              quiz.id
+                            }')" class="btn-admin" style="font-size: 0.8em; padding: 5px 10px;">Edit</button>
+                            <button onclick="deleteQuizById('${
+                              quiz.id
+                            }')" class="btn-danger" style="font-size: 0.8em; padding: 5px 10px;">Delete</button>
                         </div>
                     </div>
                 `;
-            });
-            
-            quizListDiv.innerHTML = html;
-        }
-        
-        function selectQuizForEditing(quizId) {
-            // Auto-select this quiz in all dropdowns
-            const selectors = ['selectedQuiz', 'inviteQuizId', 'controlQuizId'];
-            selectors.forEach(id => {
-                const select = document.getElementById(id);
-                if (select) {
-                    select.value = quizId;
-                }
-            });
-            
-            logToConsole(`🎯 Selected quiz ${quizId} for editing`);
-        }
-        
-        /**
-         * Delete a quiz permanently by ID
-         */
-        function deleteQuizById(quizId) {
-            const quiz = quizzes.get(quizId);
-            if (!quiz) {
-                alert('Quiz not found!');
-                return;
-            }
-            
-            const quizName = quiz.name;
-            
-            // Confirm deletion
-            const confirmed = confirm('Are you sure you want to permanently delete the quiz "' + quizName + '"?\n\nThis action cannot be undone!');
-            
-            if (!confirmed) {
-                return;
-            }
-            
-            // Send delete command to server
-            sendCommand('/deletequiz ' + quizId);
-            
-            // Remove from local storage
-            quizzes.delete(quizId);
-            saveQuizzesToStorage();
-            
-            // Update display
-            updateQuizListDisplay();
-            updateQuizLists();
-            
-            // If this was the current quiz, reset workflow
-            if (currentQuizId === quizId) {
-                currentQuizId = null;
-                currentQuizName = null;
-                questionCount = 0;
-            }
-            
-            logToConsole('Quiz "' + quizName + '" (' + quizId + ') deleted permanently');
-        }
-
-        // Disconnect handler
-        disconnectBtn.addEventListener('click', () => {
-            if (ws) {
-                ws.send(JSON.stringify({type: 'DISCONNECT', sender: adminUsername}));
-                ws.close();
-            }
-            
-            adminConnected = false;
-            connectionPanel.style.display = 'block';
-            adminPanel.style.display = 'none';
-            adminUsername = '';
         });
 
-        // Console command enter key handler
-        consoleCommand.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendConsoleCommand();
-            }
+        quizListDiv.innerHTML = html;
+      }
+
+      function selectQuizForEditing(quizId) {
+        // Auto-select this quiz in all dropdowns
+        const selectors = ["selectedQuiz", "inviteQuizId", "controlQuizId"];
+        selectors.forEach((id) => {
+          const select = document.getElementById(id);
+          if (select) {
+            select.value = quizId;
+          }
         });
 
-        // Initialize - Load quizzes from storage on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('NetTalk Quiz Admin Panel loaded');
-            loadQuizzesFromStorage();
-            
-            // Also update the quiz list display
-            if (quizzes.size > 0) {
-                updateQuizListDisplay();
-            }
+        logToConsole(`Selected quiz ${quizId} for editing`);
+      }
+
+      /**
+       * Delete a quiz permanently by ID
+       */
+      function deleteQuizById(quizId) {
+        const quiz = quizzes.get(quizId);
+        if (!quiz) {
+          alert("Quiz not found!");
+          return;
+        }
+
+        const quizName = quiz.name;
+
+        // Confirm deletion
+        const confirmed = confirm(
+          'Are you sure you want to permanently delete the quiz "' +
+            quizName +
+            '"?\n\nThis action cannot be undone!'
+        );
+
+        if (!confirmed) {
+          return;
+        }
+
+        // Send delete command to server
+        sendCommand("/deletequiz " + quizId);
+
+        // Remove from local storage
+        quizzes.delete(quizId);
+        saveQuizzesToStorage();
+
+        // Update display
+        updateQuizListDisplay();
+        updateQuizLists();
+
+        // If this was the current quiz, reset workflow
+        if (currentQuizId === quizId) {
+          currentQuizId = null;
+          currentQuizName = null;
+          questionCount = 0;
+        }
+
+        logToConsole(
+          'Quiz "' + quizName + '" (' + quizId + ") deleted permanently"
+        );
+      }
+
+      // Disconnect handler
+      disconnectBtn.addEventListener("click", () => {
+        if (ws) {
+          ws.send(
+            JSON.stringify({ type: "DISCONNECT", sender: adminUsername })
+          );
+          ws.close();
+        }
+
+        adminConnected = false;
+        connectionPanel.style.display = "block";
+        adminPanel.style.display = "none";
+        adminUsername = "";
+
+        // Clear login session and return to login page
+        sessionStorage.removeItem("adminLoggedIn");
+        document.getElementById("mainApp").style.display = "none";
+        document.getElementById("loginPage").style.display = "block";
+
+        // Clear login form
+        document.getElementById("loginUsername").value = "";
+        document.getElementById("loginPassword").value = "";
+      });
+
+      // Console command enter key handler
+      consoleCommand.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendConsoleCommand();
+        }
+      });
+
+      // Initialize - Load quizzes from storage on page load
+      window.addEventListener("DOMContentLoaded", () => {
+        console.log("NetTalk Quiz Admin Panel loaded");
+        loadQuizzesFromStorage();
+
+        // Also update the quiz list display
+        if (quizzes.size > 0) {
+          updateQuizListDisplay();
+        }
+      });
+
+      // ============================================
+      // WORKFLOW TAB NAVIGATION FUNCTIONS
+      // ============================================
+
+      let currentQuizId = null;
+      let currentQuizName = null;
+      let questionCount = 0;
+
+      /**
+       * Show specific workflow tab
+       * @param {string} tabName - Name of tab to show (create, questions, invite, control, manage)
+       */
+      function showTab(tabName) {
+        // Hide all tab panes
+        const panes = document.querySelectorAll(".tab-pane");
+        panes.forEach((pane) => pane.classList.remove("active"));
+
+        // Deactivate all tab buttons
+        const buttons = document.querySelectorAll(".tab-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
+
+        // Show selected tab pane - use camelCase for ID (e.g., 'questions' -> 'questionsTab')
+        const tabId = tabName + "Tab";
+        const selectedPane = document.getElementById(tabId);
+
+        console.log("🔍 DEBUG showTab:", {
+          tabName,
+          tabId,
+          elementFound: !!selectedPane,
+          currentQuizId,
+          element: selectedPane,
         });
 
-        // ============================================
-        // WORKFLOW TAB NAVIGATION FUNCTIONS
-        // ============================================
-        
-        let currentQuizId = null;
-        let currentQuizName = null;
-        let questionCount = 0;
-
-        /**
-         * Show specific workflow tab
-         * @param {string} tabName - Name of tab to show (create, questions, invite, control, manage)
-         */
-        function showTab(tabName) {
-            // Hide all tab panes
-            const panes = document.querySelectorAll('.tab-pane');
-            panes.forEach(pane => pane.classList.remove('active'));
-
-            // Deactivate all tab buttons
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-
-            // Show selected tab pane - use camelCase for ID (e.g., 'questions' -> 'questionsTab')
-            const tabId = tabName + 'Tab';
-            const selectedPane = document.getElementById(tabId);
-            
-            console.log('🔍 DEBUG showTab:', {
-                tabName,
-                tabId,
-                elementFound: !!selectedPane,
-                currentQuizId,
-                element: selectedPane
-            });
-            
-            if (selectedPane) {
-                selectedPane.classList.add('active');
-                console.log('✅ Added active class to', tabId);
-            } else {
-                console.error('❌ Could not find element with ID:', tabId);
-            }
-
-            // Activate selected tab button
-            const selectedButton = document.querySelector(`.tab-btn[onclick*="${tabName}"]`);
-            if (selectedButton) {
-                selectedButton.classList.add('active');
-            }
-            
-            // Special handling for questions tab
-            if (tabName === 'questions') {
-                const noQuizMessage = document.getElementById('noQuizMessage');
-                const questionForm = document.getElementById('questionForm');
-                
-                console.log('🔍 DEBUG questions tab:', {
-                    currentQuizId,
-                    noQuizMessageFound: !!noQuizMessage,
-                    questionFormFound: !!questionForm
-                });
-                
-                if (currentQuizId) {
-                    // Quiz exists, show form
-                    if (noQuizMessage) {
-                        noQuizMessage.style.display = 'none';
-                        console.log('✅ Hid noQuizMessage');
-                    }
-                    if (questionForm) {
-                        questionForm.style.display = 'block';
-                        console.log('✅ Showed questionForm');
-                    }
-                } else {
-                    // No quiz, show warning
-                    if (noQuizMessage) {
-                        noQuizMessage.style.display = 'block';
-                        console.log('✅ Showed noQuizMessage');
-                    }
-                    if (questionForm) {
-                        questionForm.style.display = 'none';
-                        console.log('✅ Hid questionForm');
-                    }
-                }
-            }
-
-            logToConsole(`📑 Switched to ${tabName} tab`);
+        if (selectedPane) {
+          selectedPane.classList.add("active");
+          console.log("✅ Added active class to", tabId);
+        } else {
+          console.error("❌ Could not find element with ID:", tabId);
         }
 
-        /**
-         * Move to Questions tab after quiz creation
-         */
-        function moveToQuestions() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
-            }
-
-            // Enable questions tab button
-            const questionsBtn = document.getElementById('questionsTabBtn');
-            if (questionsBtn) {
-                questionsBtn.disabled = false;
-                questionsBtn.classList.remove('disabled');
-            }
-
-            // Show current quiz display in create tab
-            const currentQuizDisplay = document.getElementById('currentQuizDisplay');
-            if (currentQuizDisplay) {
-                currentQuizDisplay.style.display = 'block';
-            }
-
-            // Update current quiz display
-            const nameEl = document.getElementById('currentQuizName');
-            if (nameEl) nameEl.textContent = currentQuizName || 'Unknown Quiz';
-            
-            const idEl = document.getElementById('currentQuizId');
-            if (idEl) idEl.textContent = currentQuizId || 'N/A';
-            
-            const questionsEl = document.getElementById('currentQuizQuestions');
-            if (questionsEl) questionsEl.textContent = questionCount;
-
-            // Switch to questions tab
-            showTab('questions');
-            
-            // Show questions quiz info
-            const questionsQuizInfo = document.getElementById('questionsQuizInfo');
-            if (questionsQuizInfo) {
-                questionsQuizInfo.style.display = 'block';
-            }
-            
-            // Update questions tab info
-            const questionsQuizName = document.getElementById('questionsQuizName');
-            if (questionsQuizName) questionsQuizName.textContent = currentQuizName;
-            
-            const questionsCount = document.getElementById('questionsCount');
-            if (questionsCount) questionsCount.textContent = questionCount;
-            
-            // Hide warning message and show question form
-            const noQuizMessage = document.getElementById('noQuizMessage');
-            if (noQuizMessage) noQuizMessage.style.display = 'none';
-            
-            const questionForm = document.getElementById('questionForm');
-            if (questionForm) questionForm.style.display = 'block';
-            
-            logToConsole(`✅ Quiz created! Moving to Questions tab. Quiz ID: ${currentQuizId}`);
+        // Activate selected tab button
+        const selectedButton = document.querySelector(
+          `.tab-btn[onclick*="${tabName}"]`
+        );
+        if (selectedButton) {
+          selectedButton.classList.add("active");
         }
 
-        /**
-         * Move to Invite tab after adding questions
-         */
-        function moveToInvite() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
-            }
+        // Special handling for questions tab
+        if (tabName === "questions") {
+          const noQuizMessage = document.getElementById("noQuizMessage");
+          const questionForm = document.getElementById("questionForm");
 
-            if (questionCount === 0) {
-                const confirmMove = confirm('No questions added yet. Continue anyway?');
-                if (!confirmMove) return;
-            }
+          console.log("🔍 DEBUG questions tab:", {
+            currentQuizId,
+            noQuizMessageFound: !!noQuizMessage,
+            questionFormFound: !!questionForm,
+          });
 
-            // Enable invite tab button
-            const inviteBtn = document.getElementById('inviteTabBtn');
-            if (inviteBtn) {
-                inviteBtn.disabled = false;
-                inviteBtn.classList.remove('disabled');
+          if (currentQuizId) {
+            // Quiz exists, show form
+            if (noQuizMessage) {
+              noQuizMessage.style.display = "none";
+              console.log("✅ Hid noQuizMessage");
             }
-
-            // Switch to invite tab
-            showTab('invite');
-            
-            // Show invite quiz info
-            const inviteQuizInfo = document.getElementById('inviteQuizInfo');
-            if (inviteQuizInfo) {
-                inviteQuizInfo.style.display = 'block';
+            if (questionForm) {
+              questionForm.style.display = "block";
+              console.log("✅ Showed questionForm");
             }
-            
-            // Update invite tab info
-            const inviteQuizName = document.getElementById('inviteQuizName');
-            if (inviteQuizName) inviteQuizName.textContent = currentQuizName;
-            
-            const inviteQuestionsCount = document.getElementById('inviteQuestionsCount');
-            if (inviteQuestionsCount) inviteQuestionsCount.textContent = questionCount;
-            
-            logToConsole(`✅ ${questionCount} question(s) added. Moving to Invite tab.`);
-        }
-        
-        /**
-         * Send invitations to participants
-         */
-        function sendInvitations() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
+          } else {
+            // No quiz, show warning
+            if (noQuizMessage) {
+              noQuizMessage.style.display = "block";
+              console.log("✅ Showed noQuizMessage");
             }
-            
-            const participants = document.getElementById('participants').value.trim();
-            
-            if (!participants) {
-                alert('Please enter participants (usernames separated by commas or "all")');
-                return;
+            if (questionForm) {
+              questionForm.style.display = "none";
+              console.log("✅ Hid questionForm");
             }
-            
-            sendCommand(`/invitequiz ${currentQuizId} ${participants}`);
-            
-            logToConsole(`📧 Invitations sent to: ${participants}`);
-            
-            // Update quiz with participants
-            const quiz = quizzes.get(currentQuizId);
-            if (quiz) {
-                quiz.participants = participants === 'all' ? ['all'] : participants.split(',').map(p => p.trim());
-                quizzes.set(currentQuizId, quiz);
-                saveQuizzesToStorage();
-            }
+          }
         }
 
-        /**
-         * Move to Control tab after inviting users
-         */
-        function moveToControl() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
-            }
+        logToConsole(`📑 Switched to ${tabName} tab`);
+      }
 
-            // Enable control tab button
-            const controlBtn = document.getElementById('controlTabBtn');
-            if (controlBtn) {
-                controlBtn.disabled = false;
-                controlBtn.classList.remove('disabled');
-            }
-
-            // Switch to control tab
-            showTab('control');
-            
-            // Show control quiz info
-            const controlQuizInfo = document.getElementById('controlQuizInfo');
-            if (controlQuizInfo) {
-                controlQuizInfo.style.display = 'block';
-            }
-            
-            // Show control display
-            const controlDisplay = document.getElementById('controlDisplay');
-            if (controlDisplay) {
-                controlDisplay.style.display = 'block';
-            }
-            
-            // Update control tab info
-            const controlQuizName = document.getElementById('controlQuizName');
-            if (controlQuizName) controlQuizName.textContent = currentQuizName;
-            
-            const controlQuizQuestions = document.getElementById('controlQuizQuestions');
-            if (controlQuizQuestions) controlQuizQuestions.textContent = questionCount;
-            
-            // Update status
-            const quiz = quizzes.get(currentQuizId);
-            const controlQuizStatus = document.getElementById('controlQuizStatus');
-            if (controlQuizStatus && quiz) {
-                controlQuizStatus.textContent = quiz.status || 'CREATED';
-                controlQuizStatus.className = 'status-badge';
-                if (quiz.status === 'ACTIVE') {
-                    controlQuizStatus.classList.add('status-active');
-                } else {
-                    controlQuizStatus.classList.add('status-created');
-                }
-            }
-            
-            logToConsole(`✅ Invitations sent. Moving to Control tab.`);
+      /**
+       * Move to Questions tab after quiz creation
+       */
+      function moveToQuestions() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
         }
 
-        /**
-         * Start the selected quiz
-         */
-        function startQuiz() {
-            console.log('[DEBUG] startQuiz() called');
-            console.log('[DEBUG] currentQuizId:', currentQuizId);
-            console.log('[DEBUG] adminConnected:', adminConnected);
-            
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                console.error('[DEBUG] No currentQuizId - aborting');
-                return;
-            }
-            
-            const quiz = quizzes.get(currentQuizId);
-            console.log('[DEBUG] quiz from storage:', quiz);
-            
-            if (!quiz) {
-                alert('Quiz not found!');
-                console.error('[DEBUG] Quiz not found in storage - aborting');
-                return;
-            }
-
-            // Confirmation dialog
-            console.log('[DEBUG] Showing confirmation dialog');
-            const confirmStart = confirm(`Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`);
-            console.log('[DEBUG] Confirmation result:', confirmStart);
-            
-            if (!confirmStart) {
-                logToConsole('⚠️ Quiz start cancelled by admin');
-                console.log('[DEBUG] User cancelled - aborting');
-                return;
-            }
-
-            logToConsole(`🚀 Sending start command for quiz: ${quiz.name} (ID: ${currentQuizId})`);
-            console.log('[DEBUG] About to send WebSocket message');
-
-            const command = `/startquiz ${currentQuizId}`;
-            
-            // Use sendCommand for proper logging
-            sendCommand(command);
-
-            logToConsole(`✅ Start command sent to server: ${command}`);
-            logToConsole(`⏳ Quiz will start in 5 seconds...`);
-
-            // Update quiz status in storage
-            quiz.status = 'ACTIVE';
-            quizzes.set(currentQuizId, quiz);
-            saveQuizzesToStorage();
-            updateQuizLists();
-            
-            // Update UI
-            const controlQuizStatus = document.getElementById('controlQuizStatus');
-            if (controlQuizStatus) {
-                controlQuizStatus.textContent = 'STARTING...';
-                controlQuizStatus.className = 'status-badge status-active';
-                
-                // Update to ACTIVE after countdown
-                setTimeout(() => {
-                    controlQuizStatus.textContent = 'ACTIVE';
-                }, 5000);
-            }
-            
-            const startBtn = document.getElementById('startBtn');
-            const endBtn = document.getElementById('endBtn');
-            if (startBtn) {
-                startBtn.disabled = true;
-                startBtn.textContent = '✓ Quiz Started';
-            }
-            if (endBtn) endBtn.disabled = false;
+        // Enable questions tab button
+        const questionsBtn = document.getElementById("questionsTabBtn");
+        if (questionsBtn) {
+          questionsBtn.disabled = false;
+          questionsBtn.classList.remove("disabled");
         }
 
-        /**
-         * End the selected quiz
-         */
-        function endQuiz() {
-            if (!currentQuizId) {
-                alert('Please create a quiz first!');
-                return;
-            }
-            
-            const quiz = quizzes.get(currentQuizId);
-            if (!quiz) {
-                alert('Quiz not found!');
-                return;
-            }
-
-            const command = `/endquiz ${currentQuizId}`;
-            ws.send(JSON.stringify({
-                type: 'COMMAND',
-                sender: adminUsername,
-                content: command
-            }));
-
-            logToConsole(`⏹️ Ending quiz: ${quiz.name}`);
-
-            // Update quiz status in storage
-            quiz.status = 'ENDED';
-            quizzes.set(currentQuizId, quiz);
-            saveQuizzesToStorage();
-            updateQuizLists();
-            
-            // Update UI
-            const controlQuizStatus = document.getElementById('controlQuizStatus');
-            if (controlQuizStatus) {
-                controlQuizStatus.textContent = 'ENDED';
-                controlQuizStatus.className = 'status-badge status-ended';
-            }
-            
-            const startBtn = document.getElementById('startBtn');
-            const endBtn = document.getElementById('endBtn');
-            if (startBtn) startBtn.disabled = false;
-            if (endBtn) endBtn.disabled = true;
+        // Show current quiz display in create tab
+        const currentQuizDisplay =
+          document.getElementById("currentQuizDisplay");
+        if (currentQuizDisplay) {
+          currentQuizDisplay.style.display = "block";
         }
 
-        /**
-         * Start quiz by ID (from Manage Quizzes tab)
-         */
-        function startQuizById(quizId) {
-            const quiz = quizzes.get(quizId);
-            if (!quiz) {
-                alert('Quiz not found!');
-                return;
-            }
+        // Update current quiz display
+        const nameEl = document.getElementById("currentQuizName");
+        if (nameEl) nameEl.textContent = currentQuizName || "Unknown Quiz";
 
-            // Confirmation dialog
-            const confirmStart = confirm(`Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`);
-            if (!confirmStart) {
-                logToConsole('⚠️ Quiz start cancelled by admin');
-                return;
-            }
+        const idEl = document.getElementById("currentQuizId");
+        if (idEl) idEl.textContent = currentQuizId || "N/A";
 
-            logToConsole(`🚀 Starting quiz: ${quiz.name} (ID: ${quizId})`);
+        const questionsEl = document.getElementById("currentQuizQuestions");
+        if (questionsEl) questionsEl.textContent = questionCount;
 
-            const command = `/startquiz ${quizId}`;
-            
-            // Use sendCommand for proper logging
-            sendCommand(command);
+        // Switch to questions tab
+        showTab("questions");
 
-            logToConsole(`✅ Start command sent to server: ${command}`);
-            logToConsole(`⏳ Quiz will start in 5 seconds...`);
-
-            // Update quiz status in storage
-            quiz.status = 'ACTIVE';
-            quizzes.set(quizId, quiz);
-            saveQuizzesToStorage();
-            updateQuizLists();
+        // Show questions quiz info
+        const questionsQuizInfo = document.getElementById("questionsQuizInfo");
+        if (questionsQuizInfo) {
+          questionsQuizInfo.style.display = "block";
         }
 
-        /**
-         * End quiz by ID (from Manage Quizzes tab)
-         */
-        function endQuizById(quizId) {
-            const quiz = quizzes.get(quizId);
-            if (!quiz) {
-                alert('Quiz not found!');
-                return;
-            }
+        // Update questions tab info
+        const questionsQuizName = document.getElementById("questionsQuizName");
+        if (questionsQuizName) questionsQuizName.textContent = currentQuizName;
 
-            const confirmEnd = confirm(`End quiz "${quiz.name}"?\n\nThis will stop the quiz and show results to participants.`);
-            if (!confirmEnd) {
-                return;
-            }
+        const questionsCount = document.getElementById("questionsCount");
+        if (questionsCount) questionsCount.textContent = questionCount;
 
-            const command = `/endquiz ${quizId}`;
-            ws.send(JSON.stringify({
-                type: 'COMMAND',
-                sender: adminUsername,
-                content: command
-            }));
+        // Hide warning message and show question form
+        const noQuizMessage = document.getElementById("noQuizMessage");
+        if (noQuizMessage) noQuizMessage.style.display = "none";
 
-            logToConsole(`⏹️ Ending quiz: ${quiz.name}`);
+        const questionForm = document.getElementById("questionForm");
+        if (questionForm) questionForm.style.display = "block";
 
-            // Update quiz status
-            quiz.status = 'ENDED';
-            quizzes.set(quizId, quiz);
-            saveQuizzesToStorage();
-            updateQuizLists();
+        logToConsole(
+          `✅ Quiz created! Moving to Questions tab. Quiz ID: ${currentQuizId}`
+        );
+      }
+
+      /**
+       * Move to Invite tab after adding questions
+       */
+      function moveToInvite() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
         }
 
-        /**
-         * Populate quiz selector dropdowns
-         */
-        function populateQuizSelector() {
-            // Populate questions tab selector
-            const questionsSelect = document.getElementById('selectedQuiz');
-            if (questionsSelect) {
-                // Clear existing options except first
-                while (questionsSelect.options.length > 1) {
-                    questionsSelect.remove(1);
-                }
-
-                // Add quiz options
-                quizzes.forEach((quiz, quizId) => {
-                    const option = document.createElement('option');
-                    option.value = quizId;
-                    option.textContent = `${quiz.name} (${quiz.questions ? quiz.questions.length : 0} questions)`;
-                    questionsSelect.appendChild(option);
-                });
-            }
-            
-            // Populate control tab selector
-            const controlSelect = document.getElementById('controlQuizId');
-            if (controlSelect) {
-                // Clear existing options except first
-                while (controlSelect.options.length > 1) {
-                    controlSelect.remove(1);
-                }
-
-                // Add quiz options
-                quizzes.forEach((quiz, quizId) => {
-                    const option = document.createElement('option');
-                    option.value = quizId;
-                    option.textContent = `${quiz.name} (${quiz.status || 'CREATED'})`;
-                    controlSelect.appendChild(option);
-                });
-            }
+        if (questionCount === 0) {
+          const confirmMove = confirm(
+            "No questions added yet. Continue anyway?"
+          );
+          if (!confirmMove) return;
         }
 
-        // Update the existing updateQuizLists function to also populate selector
-        const originalUpdateQuizLists = updateQuizLists;
-        updateQuizLists = function() {
-            originalUpdateQuizLists.call(this);
-            populateQuizSelector();
-        };
+        // Enable invite tab button
+        const inviteBtn = document.getElementById("inviteTabBtn");
+        if (inviteBtn) {
+          inviteBtn.disabled = false;
+          inviteBtn.classList.remove("disabled");
+        }
 
+        // Switch to invite tab
+        showTab("invite");
+
+        // Show invite quiz info
+        const inviteQuizInfo = document.getElementById("inviteQuizInfo");
+        if (inviteQuizInfo) {
+          inviteQuizInfo.style.display = "block";
+        }
+
+        // Update invite tab info
+        const inviteQuizName = document.getElementById("inviteQuizName");
+        if (inviteQuizName) inviteQuizName.textContent = currentQuizName;
+
+        const inviteQuestionsCount = document.getElementById(
+          "inviteQuestionsCount"
+        );
+        if (inviteQuestionsCount)
+          inviteQuestionsCount.textContent = questionCount;
+
+        logToConsole(
+          `✅ ${questionCount} question(s) added. Moving to Invite tab.`
+        );
+      }
+
+      /**
+       * Send invitations to participants
+       */
+      function sendInvitations() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
+        }
+
+        const participants = document
+          .getElementById("participants")
+          .value.trim();
+
+        if (!participants) {
+          alert(
+            'Please enter participants (usernames separated by commas or "all")'
+          );
+          return;
+        }
+
+        sendCommand(`/invitequiz ${currentQuizId} ${participants}`);
+
+        logToConsole(`📧 Invitations sent to: ${participants}`);
+
+        // Update quiz with participants
+        const quiz = quizzes.get(currentQuizId);
+        if (quiz) {
+          quiz.participants =
+            participants === "all"
+              ? ["all"]
+              : participants.split(",").map((p) => p.trim());
+          quizzes.set(currentQuizId, quiz);
+          saveQuizzesToStorage();
+        }
+      }
+
+      /**
+       * Move to Control tab after inviting users
+       */
+      function moveToControl() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
+        }
+
+        // Enable control tab button
+        const controlBtn = document.getElementById("controlTabBtn");
+        if (controlBtn) {
+          controlBtn.disabled = false;
+          controlBtn.classList.remove("disabled");
+        }
+
+        // Switch to control tab
+        showTab("control");
+
+        // Show control quiz info
+        const controlQuizInfo = document.getElementById("controlQuizInfo");
+        if (controlQuizInfo) {
+          controlQuizInfo.style.display = "block";
+        }
+
+        // Show control display
+        const controlDisplay = document.getElementById("controlDisplay");
+        if (controlDisplay) {
+          controlDisplay.style.display = "block";
+        }
+
+        // Update control tab info
+        const controlQuizName = document.getElementById("controlQuizName");
+        if (controlQuizName) controlQuizName.textContent = currentQuizName;
+
+        const controlQuizQuestions = document.getElementById(
+          "controlQuizQuestions"
+        );
+        if (controlQuizQuestions)
+          controlQuizQuestions.textContent = questionCount;
+
+        // Update status
+        const quiz = quizzes.get(currentQuizId);
+        const controlQuizStatus = document.getElementById("controlQuizStatus");
+        if (controlQuizStatus && quiz) {
+          controlQuizStatus.textContent = quiz.status || "CREATED";
+          controlQuizStatus.className = "status-badge";
+          if (quiz.status === "ACTIVE") {
+            controlQuizStatus.classList.add("status-active");
+          } else {
+            controlQuizStatus.classList.add("status-created");
+          }
+        }
+
+        logToConsole(`✅ Invitations sent. Moving to Control tab.`);
+      }
+
+      /**
+       * Start the selected quiz
+       */
+      function startQuiz() {
+        console.log("[DEBUG] startQuiz() called");
+        console.log("[DEBUG] currentQuizId:", currentQuizId);
+        console.log("[DEBUG] adminConnected:", adminConnected);
+
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          console.error("[DEBUG] No currentQuizId - aborting");
+          return;
+        }
+
+        const quiz = quizzes.get(currentQuizId);
+        console.log("[DEBUG] quiz from storage:", quiz);
+
+        if (!quiz) {
+          alert("Quiz not found!");
+          console.error("[DEBUG] Quiz not found in storage - aborting");
+          return;
+        }
+
+        // Confirmation dialog
+        console.log("[DEBUG] Showing confirmation dialog");
+        const confirmStart = confirm(
+          `Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`
+        );
+        console.log("[DEBUG] Confirmation result:", confirmStart);
+
+        if (!confirmStart) {
+          logToConsole("⚠️ Quiz start cancelled by admin");
+          console.log("[DEBUG] User cancelled - aborting");
+          return;
+        }
+
+        logToConsole(
+          `🚀 Sending start command for quiz: ${quiz.name} (ID: ${currentQuizId})`
+        );
+        console.log("[DEBUG] About to send WebSocket message");
+
+        const command = `/startquiz ${currentQuizId}`;
+
+        // Use sendCommand for proper logging
+        sendCommand(command);
+
+        logToConsole(`✅ Start command sent to server: ${command}`);
+        logToConsole(`⏳ Quiz will start in 5 seconds...`);
+
+        // Update quiz status in storage
+        quiz.status = "ACTIVE";
+        quizzes.set(currentQuizId, quiz);
+        saveQuizzesToStorage();
+        updateQuizLists();
+
+        // Update UI
+        const controlQuizStatus = document.getElementById("controlQuizStatus");
+        if (controlQuizStatus) {
+          controlQuizStatus.textContent = "STARTING...";
+          controlQuizStatus.className = "status-badge status-active";
+
+          // Update to ACTIVE after countdown
+          setTimeout(() => {
+            controlQuizStatus.textContent = "ACTIVE";
+          }, 5000);
+        }
+
+        const startBtn = document.getElementById("startBtn");
+        const endBtn = document.getElementById("endBtn");
+        if (startBtn) {
+          startBtn.disabled = true;
+          startBtn.textContent = "✓ Quiz Started";
+        }
+        if (endBtn) endBtn.disabled = false;
+      }
+
+      /**
+       * End the selected quiz
+       */
+      function endQuiz() {
+        if (!currentQuizId) {
+          alert("Please create a quiz first!");
+          return;
+        }
+
+        const quiz = quizzes.get(currentQuizId);
+        if (!quiz) {
+          alert("Quiz not found!");
+          return;
+        }
+
+        const command = `/endquiz ${currentQuizId}`;
+        ws.send(
+          JSON.stringify({
+            type: "COMMAND",
+            sender: adminUsername,
+            content: command,
+          })
+        );
+
+        logToConsole(`⏹️ Ending quiz: ${quiz.name}`);
+
+        // Update quiz status in storage
+        quiz.status = "ENDED";
+        quizzes.set(currentQuizId, quiz);
+        saveQuizzesToStorage();
+        updateQuizLists();
+
+        // Update UI
+        const controlQuizStatus = document.getElementById("controlQuizStatus");
+        if (controlQuizStatus) {
+          controlQuizStatus.textContent = "ENDED";
+          controlQuizStatus.className = "status-badge status-ended";
+        }
+
+        const startBtn = document.getElementById("startBtn");
+        const endBtn = document.getElementById("endBtn");
+        if (startBtn) startBtn.disabled = false;
+        if (endBtn) endBtn.disabled = true;
+      }
+
+      /**
+       * Start quiz by ID (from Manage Quizzes tab)
+       */
+      function startQuizById(quizId) {
+        const quiz = quizzes.get(quizId);
+        if (!quiz) {
+          alert("Quiz not found!");
+          return;
+        }
+
+        // Confirmation dialog
+        const confirmStart = confirm(
+          `Start quiz "${quiz.name}"?\n\nParticipants will be notified and the quiz will begin after a 5-second countdown.`
+        );
+        if (!confirmStart) {
+          logToConsole("⚠️ Quiz start cancelled by admin");
+          return;
+        }
+
+        logToConsole(`🚀 Starting quiz: ${quiz.name} (ID: ${quizId})`);
+
+        const command = `/startquiz ${quizId}`;
+
+        // Use sendCommand for proper logging
+        sendCommand(command);
+
+        logToConsole(`✅ Start command sent to server: ${command}`);
+        logToConsole(`⏳ Quiz will start in 5 seconds...`);
+
+        // Update quiz status in storage
+        quiz.status = "ACTIVE";
+        quizzes.set(quizId, quiz);
+        saveQuizzesToStorage();
+        updateQuizLists();
+      }
+
+      /**
+       * End quiz by ID (from Manage Quizzes tab)
+       */
+      function endQuizById(quizId) {
+        const quiz = quizzes.get(quizId);
+        if (!quiz) {
+          alert("Quiz not found!");
+          return;
+        }
+
+        const confirmEnd = confirm(
+          `End quiz "${quiz.name}"?\n\nThis will stop the quiz and show results to participants.`
+        );
+        if (!confirmEnd) {
+          return;
+        }
+
+        const command = `/endquiz ${quizId}`;
+        ws.send(
+          JSON.stringify({
+            type: "COMMAND",
+            sender: adminUsername,
+            content: command,
+          })
+        );
+
+        logToConsole(`⏹️ Ending quiz: ${quiz.name}`);
+
+        // Update quiz status
+        quiz.status = "ENDED";
+        quizzes.set(quizId, quiz);
+        saveQuizzesToStorage();
+        updateQuizLists();
+      }
+
+      /**
+       * Populate quiz selector dropdowns
+       */
+      function populateQuizSelector() {
+        // Populate questions tab selector
+        const questionsSelect = document.getElementById("selectedQuiz");
+        if (questionsSelect) {
+          // Clear existing options except first
+          while (questionsSelect.options.length > 1) {
+            questionsSelect.remove(1);
+          }
+
+          // Add quiz options
+          quizzes.forEach((quiz, quizId) => {
+            const option = document.createElement("option");
+            option.value = quizId;
+            option.textContent = `${quiz.name} (${
+              quiz.questions ? quiz.questions.length : 0
+            } questions)`;
+            questionsSelect.appendChild(option);
+          });
+        }
+
+        // Populate control tab selector
+        const controlSelect = document.getElementById("controlQuizId");
+        if (controlSelect) {
+          // Clear existing options except first
+          while (controlSelect.options.length > 1) {
+            controlSelect.remove(1);
+          }
+
+          // Add quiz options
+          quizzes.forEach((quiz, quizId) => {
+            const option = document.createElement("option");
+            option.value = quizId;
+            option.textContent = `${quiz.name} (${quiz.status || "CREATED"})`;
+            controlSelect.appendChild(option);
+          });
+        }
+      }
+
+      // Update the existing updateQuizLists function to also populate selector
+      const originalUpdateQuizLists = updateQuizLists;
+      updateQuizLists = function () {
+        originalUpdateQuizLists.call(this);
+        populateQuizSelector();
+      };
     </script>
-</body>
+  </body>
 </html>
